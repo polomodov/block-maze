@@ -37,12 +37,19 @@ function eyes(c,x,y,gap,color='#272936') {
   c.fillStyle=color;c.fillRect(x,y,1.12,1.5);c.fillRect(x+gap,y,1.1,1.5);
 }
 const bipeds=new Set(['zombie','drowned','skeleton','wither_skeleton','pumpkin_guard','enderman','witch']);
-function humanoid(c,id,gait) {
+function humanoid(c,id,gait,dancing) {
   const wither=id==='wither_skeleton',bone=id==='skeleton'||wither, dark=id==='enderman', pumpkin=id==='pumpkin_guard', witch=id==='witch';
   const face=wither?['#555663','#858493','#383747']:bone?stone:dark?coal:pumpkin?fire:witch?['#aa8c81','#d3b8a0','#776575']:id==='drowned'?sea:zombie;
   const coat=bone?face:dark?coal:pumpkin?['#686f46','#a5a060','#414c3e']:witch?purple:teal;
   const pants=bone?face:dark?coal:pumpkin?red:violet;
   for(const leg of [-1,1]) {
+    if (dancing) {
+      const kick=Math.max(0,gait*leg);
+      const foot=leg*(2.05+kick*2.2), knee=leg*(1.6+kick*2.7);
+      stroke(c,leg*1.25,-6,knee,-3.1-kick*2,foot,-.8-kick*2.5,pants[2],bone||dark?1.15:2.15);
+      cube(c,foot-.75,-1.55-kick*2.5,2.1,1.3,.7,pants);
+      continue;
+    }
     const dx=gait*leg*1.85;
     stroke(c,leg*1.25,-6,leg*1.25+dx*.75,-3.5,leg*1.25+dx,-.8,pants[2],bone||dark?1.05:2.05);
     cube(c,leg*1.25+dx-.65,-1.55,1.8,1.3,.7,pants);
@@ -51,9 +58,16 @@ function humanoid(c,id,gait) {
   if(witch)shape(c,'M-2.8 -11.7L2 -11.7 4.1 -3Q.5 -2 -4.15 -3.3Z',coat[0],coat[2],.65);
   else cube(c,-2.15,-11.8,4.6,6.5,1.5,coat);
   if(bone) for(let i=0;i<3;i++){c.fillStyle=coal[0];c.fillRect(-1.6,-10.9+i*1.5,3.8,.62);}
-  const reach=dark?-.9:-5.9;
-  stroke(c,-2.95,-11.1,-2.7+gait,-8.4,-2.8+gait*2,reach,face[2],dark?1.05:1.62);
-  stroke(c,2.5,-11.1,3.25-gait,-8.3,3.5-gait*1.8,reach,face[0],dark?1.1:1.78);
+  if (dancing) {
+    for (const side of [-1,1]) {
+      const reach=(1+gait*side)*.5;
+      stroke(c,side*2.5,-11,side*(4.65+reach),-9.75-reach*2.4,side*(5.65+reach*.65),-8.4-reach*8,face[side===1?0:2],dark?1.15:1.82);
+    }
+  } else {
+    const reach=dark?-.9:-5.9;
+    stroke(c,-2.95,-11.1,-2.7+gait,-8.4,-2.8+gait*2,reach,face[2],dark?1.05:1.62);
+    stroke(c,2.5,-11.1,3.25-gait,-8.3,3.5-gait*1.8,reach,face[0],dark?1.1:1.78);
+  }
   if(pumpkin){shape(c,'M-2.1 -10.7L1.8 -8.9M-.35 -11.4L-1.65 -8.4',null,'#cc9c61',.75);}
   cube(c,-2.7,-17.45,6.65,5.65,1.65,face);
   if(pumpkin) {
@@ -71,24 +85,28 @@ function humanoid(c,id,gait) {
     shape(c,'M-2.7 -18L2.3 -17.9',null,'#bf9658',.68);
     oval(c,.5,-14,.72,1.1,'#c7a08d');
   }
+  c.save();
+  if (dancing) c.translate(2.4+(1+gait)*.3,-2.5-(1+gait)*4);
   if(wither) {
     shape(c,'M4 -5.4L4.6 -7.3 6.9 -13.4 8.3 -14.35 8 -12.5 5.7 -6.85 5.1 -5Z','#afbbc7','#515166',.62);
     shape(c,'M3.3 -7.7L6.65 -6.3',null,'#cab07b',.9);
   } else if(bone)shape(c,'M5 -10Q9 -7.9 4.2 -4.2L5 -10',null,'#b4855a',.67);
   c.restore();
+  c.restore();
 }
-function creature(c,id,t,gait,flash) {
-  if(bipeds.has(id)) { humanoid(c,id,gait);return; }
+function creature(c,id,t,gait,flash,dancing) {
+  if(bipeds.has(id)) { humanoid(c,id,gait,dancing);return; }
   if(id==='creeper'){
     const leafy=flash?['#fff0b2','#fffade','#e1c894']:moss;
-    for(const i of [-1,1]) cube(c,i*2.2-1.1+gait*i,-2.8,3,2.55,1.25,leafy);
+    for(const i of [-1,1]) cube(c,i*(2.2+(dancing?1:0))-1.1+gait*i,-2.8-(dancing?Math.max(0,gait*i)*3:0),3,2.55,1.25,leafy);
     cube(c,-1.5,-11,4.2,8.5,1.65,leafy);cube(c,-2.6,-17.4,6.7,6,2,leafy);
     eyes(c,-1.7,-15.8,3.7); shape(c,'M.15 -14.55L1.75 -14.55 1.75 -13.65 2.55 -13.65 2.55 -12 1.75 -12 1.75 -12.6 .1 -12.6 .1 -12 -.65 -12 -.65 -13.65 .15 -13.65Z',coal[2]);
     c.fillStyle=flash?'#fffce3':'#93b86d';c.fillRect(-1,-9.5,1.1,1.15);c.fillRect(1,-6.7,1.3,1.5);
   }else if(id==='slime'||id==='magma_cube'){
     const hot=id==='magma_cube';
     const col=hot?red:['#58b388','#aff1a7','#38857b'];
-    c.save();c.scale(1+Math.sin(t*5)*.035,1-Math.sin(t*5)*.065);
+    const squash=dancing ? Math.cos(t*Math.PI*4)*.13 : Math.sin(t*5)*.035;
+    c.save();c.scale(1+squash,1-squash*(dancing?1.12:1.85));
     if(hot){
       for(let i=0;i<3;i++){cube(c,-5.55,-3.9-i*4.3,12,3.4,2,col);if(i<2)cube(c,-4.9,-4.65-i*4.3,10.9,.85,1,fire);}
       eyes(c,-2.65,-10.5,5.2,'#ffde65');
@@ -102,8 +120,8 @@ function creature(c,id,t,gait,flash) {
   }else if(id==='spider'){
     // Separate the silhouettes of the eight legs even at single-tile scale.
     for(let i=0;i<4;i++)for(const side of [-1,1]){
-      const step=Math.sin(t*10+i*1.9)*.72;
-      const footX=side*(9.1-i*.65)+step, footY=-8.2+i*2.37;
+      const step=dancing?Math.sin(t*2*Math.PI+i*.9)*1.8:Math.sin(t*10+i*1.9)*.72;
+      const footX=side*(9.1-i*.65)+step, footY=-8.2+i*2.37-(dancing?Math.max(0,step*side)*1.8:0);
       const kneeX=side*(6.3+i*.18), kneeY=-11.6+i*1.65;
       stroke(c,side*.65,-8+i*.7,kneeX,kneeY,footX,footY,'#302e3b',1.05);
       stroke(c,side*1.2,-8+i*.7,kneeX,kneeY,footX,footY,'#857081',.46);
@@ -115,7 +133,7 @@ function creature(c,id,t,gait,flash) {
     oval(c,3.55,-5.9,.46,.38,'#ffae75');
   }else if(id==='blaze'){
     for(let i=0;i<6;i++){
-      const a=t*2.7+i*Math.PI/3;
+      const a=t*(dancing?Math.PI*2:2.7)+i*Math.PI/3;
       cube(c,Math.cos(a)*4.6-1,-6.1+Math.sin(a)*2.2,1.55,3.75,.7,fire);
     }
     cube(c,-3,-14.9,7.4,6.8,2.2,fire);eyes(c,-1.7,-12.6,4.2);
@@ -131,10 +149,14 @@ function creature(c,id,t,gait,flash) {
     shape(c,'M-3.95 -10.5L-2.75 -9.7 -2.85 -8.4M-3.9 -7.4L-2.9 -6.9 -2.9 -5.7',null,scales[1],.63);
     if(elder){c.fillStyle=scales[2];c.fillRect(-3.8,-10.2,2,.7);c.fillRect(1.2,-5.3,2.1,.7);}
     cube(c,-.7,-9.8,4.3,3.6,.55,['#e7dbc2','#fff2ce','#a3aca4']);oval(c,2,-8,1.1,1.15,'#b65442');
-    shape(c,'M-5.2 -8.1L-8.5 -9 -9.7 -11 -9 -6.15 -6.4 -6.9Z',scales[2]);
+    c.save();c.translate(-5.2,-8.1);
+    if(dancing)c.rotate(gait*.79);
+    shape(c,'M0 0L-3.3 -.9 -4.5 -2.9 -3.8 1.95 -1.2 1.2Z',scales[2]);
+    c.restore();
   }else if(id==='ghast'){
     for(let i=0;i<5;i++){
-      const bx=-5.1+i*2.05, by=-4.5+(i%2)*.55, tilt=Math.sin(t*3+i)*.75;
+      const bx=-5.1+i*2.05, by=-4.5+(i%2)*.55;
+      const tilt=dancing?Math.sin(t*Math.PI*2+i*.7)*2.1:Math.sin(t*3+i)*.75;
       stroke(c,bx,by,bx+.35+tilt,by+1.8,bx+tilt*1.5,by+3.25+(i%3)*.65,'#ac9da9',1.25);
     }
     cube(c,-5.2,-15.5,11.7,10.9,2,['#ded2cd','#fff0db','#b39fae']);
@@ -154,18 +176,19 @@ const scaleByType={
   enderman:.99,witch:.82,creeper:.91,slime:1.04,magma_cube:1.03,spider:1,
   guardian:.97,elder_guardian:1.07,ghast:1,ghost:1,blaze:.90,
 };
-export function drawMazeMonster(ctx,monster,x,y,time=0,flash=false) {
+export function drawMazeMonster(ctx,monster,x,y,time=0,flash=false,songAge=0) {
   const size=scaleByType[monster.type];
   if(!size)return false;
   const still=monster.stun>0 || monster.watched;
   const step=monster.target && !still ? Math.sin((monster.x+monster.y)*Math.PI*1.8) : 0;
-  const gait=monster.dance>0 ? Math.sin(monster.dance*12) : step;
+  const dancing=monster.dance>0;
+  const gait=dancing ? Math.cos(songAge*Math.PI*2) : step;
   const movementTime=still || (!monster.target && monster.type==='spider') ? 0 : time;
   ctx.save();
   ctx.translate(x,y+7.5);
   ctx.scale((monster.dir==='left'?-1:1)*size,size);
   ctx.lineCap='round';ctx.lineJoin='round';
-  creature(ctx,monster.type,movementTime,gait,flash);
+  creature(ctx,monster.type,dancing?songAge:movementTime,gait,flash,dancing);
   ctx.restore();
   return true;
 }

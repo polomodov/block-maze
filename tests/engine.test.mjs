@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createGame } from '../engine.js';
+import { performanceAge } from '../guitar.js';
 import { LEVELS } from '../levels.js';
 
 for (const [id, level] of Object.entries(LEVELS)) {
@@ -331,11 +332,20 @@ test('notes travel round walls in 0.6 seconds, stop at six steps and a dancer re
   assert.equal(aroundWall.dance, 0);
   game.update(0.01);
   assert.equal(aroundWall.dance, 5);
-  game.update(4.4);
+  game.update(2);
+  assert.equal(state.solo, null);
+  assert.ok(Math.abs(performanceAge(state) - 2.6) < 1e-7);
+  game.pause();
+  const pausedAge = performanceAge(state);
+  game.update(1);
+  assert.equal(performanceAge(state), pausedAge);
+  game.resume();
+  game.update(2.4);
   assert.equal(near.dance, 0);
   assert.equal(outside.dance, 0);
   assert.ok(Math.abs(aroundWall.dance - 0.6) < 1e-8);
   game.update(0.6);
+  assert.equal(performanceAge(state), null);
   assert.equal(aroundWall.dance, 0);
   // After the music ends, touching a dancer again costs a life.
   Object.assign(state.player, { x: near.x, y: near.y });
@@ -361,6 +371,7 @@ test('the solo cancels a warned attack but a previously launched projectile stil
   game.update(0.1);
   assert.equal(state.lives, 2);
   assert.equal(state.solo, null);
+  assert.equal(performanceAge(state), null);
   assert.equal(state.monsters.every(monster => monster.dance === 0), true);
   assert.ok(state.cooldown > 29);
 });

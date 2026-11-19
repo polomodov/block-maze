@@ -79,6 +79,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     state.slow = 0;
     state.rideRemaining = 0;
     state.solo = null;
+    state.guitarStartedAt = null;
     state.boost = 0;
     state.attack = 0;
     state.fear = 0;
@@ -227,6 +228,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
         cells.push([tile % state.width, Math.floor(tile / state.width), steps]);
       }
     });
+    state.guitarStartedAt = state.time;
     state.solo = { x, y, age: 0, front: 1, radius, speed, cells };
     advanceSolo(0);
   }

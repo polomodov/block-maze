@@ -1,6 +1,7 @@
-import { createGame } from './engine.js?v=guitar-solo-1';
+import { playGuitar, stopGuitar, performanceAge } from './guitar.js?v=encore-1';
+import { createGame } from './engine.js?v=encore-1';
 import { LEVELS } from './levels.js?v=end-family-1';
-import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=studio-1';
+import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=encore-1';
 
 const byId = (id) => document.getElementById(id);
 const lobby = byId('lobby');
@@ -68,8 +69,7 @@ let swipe;
 let soundEnabled = false;
 let audio;
 let resumeAfterHelp = false;
-let guitarRiff;
-let guitarVoice;
+
 
 function setText(element, value) {
   const text = String(value);
@@ -121,50 +121,6 @@ function playBoo() {
   voice.stop(now + 0.4);
 }
 
-// Pluck each string once, then let the vibration lose treble on every cycle.
-function makeGuitarRiff() {
-  const rate = audio.sampleRate;
-  const buffer = audio.createBuffer(1, Math.ceil(1.2 * rate), rate);
-  const samples = buffer.getChannelData(0);
-  const notes = [
-    [0, 164.81], [0.025, 196], [0.050, 246.94],
-    [0.22, 293.66], [0.34, 329.63],
-    [0.53, 164.81], [0.55, 246.94], [0.57, 392],
-  ];
-  for (const [onset, frequency] of notes) {
-    const period = Math.round(rate / frequency + 0.5);
-    const string = Float32Array.from({ length: period }, () => Math.random() * 2 - 1);
-    const start = Math.round(onset * rate);
-    for (let i = start; i < samples.length; i++) {
-      const pos = (i - start) % period;
-      const envelope = Math.min(1, (i - start) / (0.003 * rate), (samples.length - i) / (0.03 * rate));
-      samples[i] += 0.2 * envelope * string[pos];
-      string[pos] = 0.497 * (string[pos] + string[(pos + 1) % period]);
-    }
-  }
-  return buffer;
-}
-
-function stopGuitar() {
-  if (!guitarVoice) return;
-  guitarVoice.stop();
-  guitarVoice = undefined;
-}
-
-function playGuitar() {
-  if (!soundEnabled || audio?.state !== 'running') return;
-  guitarRiff ??= makeGuitarRiff();
-  const voice = audio.createBufferSource();
-  voice.buffer = guitarRiff;
-  voice.connect(audio.destination);
-  voice.onended = () => {
-    voice.disconnect();
-    if (voice === guitarVoice) guitarVoice = undefined;
-  };
-  guitarVoice = voice;
-  voice.start();
-}
-
 function displaySound() {
   soundButton.setAttribute('aria-label', 'Звук');
   soundButton.title = soundEnabled ? 'Выключить звук' : 'Включить звук';
@@ -183,7 +139,9 @@ soundButton.addEventListener('click', async () => {
     const Audio = window.AudioContext || window.webkitAudioContext;
     audio ??= new Audio();
     await audio.resume();
-    playNote(660, 0.12);
+    const age = game?.state.status === 'playing' ? performanceAge(game.state) : null;
+    if (age !== null && soundEnabled) playGuitar(audio, audio.destination, age);
+    else playNote(660, 0.12);
   } catch {
     soundEnabled = false;
     displaySound();
@@ -240,12 +198,13 @@ function updateHud() {
     for (const monster of state.monsters) dance = Math.max(dance, monster.dance);
     if (state.solo) abilityLabel = 'Гитарное соло!';
     else if (dance > 0) abilityLabel = 'Танец · ' + Math.ceil(dance) + ' с';
+    else if (performanceAge(state) !== null) abilityLabel = 'Гитарное соло!';
     else if (cooldown > 0) abilityLabel = 'Гитара · ' + cooldown + ' с';
     if (dance > 0) soloHint = 'Пока над монстрами ноты, беги мимо!';
     else if (state.solo) soloHint = 'Волна нот идёт по коридорам!';
     else if (cooldown === 0) soloHint = 'Сыграй рядом с монстрами. Твою гитару слышно за шесть клеток по коридору.';
   }
-  abilityButton.classList.toggle('playing-solo', Boolean(state.solo) || dance > 0);
+  abilityButton.classList.toggle('playing-solo', performanceAge(state) !== null || dance > 0);
   buttonText(abilityButton, abilityLabel);
   abilityButton.disabled = state.status !== 'playing' || cooldown > 0 || state.rideRemaining > 0;
   setText(abilityHint, state.status === 'playing' ? soloHint : '');
@@ -291,9 +250,12 @@ function animate(time) {
   previousTime = time;
   game.update(Math.min(0.1, elapsed));
 
-  if (game.state.lives < previousLives) playNote(124, 0.28, 'sawtooth');
-  else if (game.state.collected > collected) playNote(770, 0.065);
+  if (game.state.lives < previousLives) {
+    stopGuitar();
+    playNote(124, 0.28, 'sawtooth');
+  } else if (game.state.collected > collected) playNote(770, 0.065);
   if (game.state.status !== 'playing') {
+    stopGuitar();
     if (game.state.status === 'won') playNote(980, 0.3);
     updateScreen();
     return;
@@ -338,6 +300,7 @@ function pause() {
 function resume() {
   if (game?.state.status !== 'paused') return;
   game.resume();
+  if (soundEnabled && audio) playGuitar(audio, audio.destination, performanceAge(game.state));
   run();
 }
 
@@ -350,7 +313,9 @@ function activate() {
   if (game?.state.status !== 'playing' || !game.activate()) return;
   if (game.state.hero === 'dad') playBoo();
   else if (game.state.hero === 'mom') playNote(1046, 0.25, 'sine');
-  else if (game.state.hero === 'pasha') playGuitar();
+  else if (game.state.hero === 'pasha') {
+    if (soundEnabled && audio) playGuitar(audio, audio.destination, 0);
+  }
   else playNote(game.state.hero === 'kirill' ? 920 : 175, 0.18, 'square');
   if (game.state.status === 'playing') updateHud();
   else updateScreen();

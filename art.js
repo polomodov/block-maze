@@ -1,4 +1,7 @@
-import { drawMazeMonster } from './maze-monsters.js';
+import { drawPowerBehind, drawPowerFront, drawMonsterReaction, invisibleOpacity } from './maze-abilities.js?v=encore-1';
+import { drawMazeMonster } from './maze-monsters.js?v=encore-1';
+import { performanceAge } from './guitar.js?v=encore-1';
+import { drawChordWave, drawGuitarist, danceFloor, dancerNotes } from './maze-music.js?v=encore-1';
 import { configureBoard } from './display.js';
 import { tileFinish, lightScene, drawGem, landmarkBounds, animateLandmark, boardingMarks, lavaShimmer } from './maze-materials.js';
 import { drawTempleFixture, templeFlames } from './temple-art.js?v=end-family-1';
@@ -291,12 +294,6 @@ const spritePixels = {
     '...qtjtbBbtjuq..', '..qtujtbbbtjuq..', '..quujtbbbtjuq..', '..qffutbbbtjfq..',
     '...quuqNnNquq...', '....qNNnqnNnq...', '....qNnnqnNNq...', '...qPppqqppPq...',
   ],
-  guitar: [
-    '..............qqw', '.............qtqq', '............qcsw.',
-    '.....qqq...qcsq..', '..qqqtrrqqqcsq...', '.qtrrrhrrqcsq....',
-    'qtrwhhhrrcsq.....', 'qtrrrhrrscq......', 'qtrbrsrrrq.......',
-    '.qrbbrrqq........', '..qrrrq..........', '...qqq...........',
-  ],
   maxim: [
     '.....qhhhhq.....', '....qllhhhdq....', '...qlhhhhhhdq...', '...qhhffhhddq...',
     '...qhffffffdq...', '...qhfofkfokq...', '...qkfwwffffq...', '....qkffkffkq...',
@@ -331,11 +328,6 @@ const monsterColors = {
   i:'#c7d2cf', I:'#f2f0df', B:'#95a5a9', G:'#6bcd82', L:'#bcf6a2',
   u:'#4daa73', U:'#3e8867', x:'#376d56',
   v:'#358982', l:'#5e6490', p:'#63505d', b:'#352f42', a:'#846975', r:'#e77745', w:'#ffaf65'
-};
-
-const guitarColors = {
-  q:'#2d2539', r:'#d75f48', t:'#ffa771', b:'#93423f', h:'#59313c',
-  s:'#fff1bd', c:'#a57852', w:'#fff6dd',
 };
 
 const monsterPalettes = {
@@ -434,12 +426,17 @@ function sprite(ctx, name, colors, x, y, facingLeft = false, stride = 0, back = 
   ctx.restore();
 }
 
-function shulkerShell(ctx, monster, x, y) {
+function shulkerShell(ctx, monster, x, y, songAge) {
   const image = spriteImage('shulker', endMonsterColors, false);
   ctx.drawImage(image, 0, 7, 16, 9, x, y+7, 16, 9);
   // Raising the lid exposes the eyes and gives the player a cue before the shot.
-  const lid = monster.windup > 0 ? -1 : 3;
-  ctx.drawImage(image, 0, 0, 16, 7, x, y+lid, 16, 7);
+  const dancing=monster.dance>0;
+  const tilt=dancing?Math.cos(songAge*Math.PI*2):0;
+  const lid=dancing ? -.5-1.5*Math.abs(tilt) : monster.windup>0 ? -1 : 3;
+  ctx.save();
+  ctx.translate(x+8, y+lid+3.5);ctx.rotate(tilt*.15);
+  ctx.drawImage(image, 0, 0, 16, 7, -8, -3.5, 16, 7);
+  ctx.restore();
   if (lid < 0) {
     box(ctx,'#fff4bc',x+5,y+8,1,1);
     box(ctx,'#fff4bc',x+10,y+8,1,1);
@@ -630,71 +627,6 @@ function actorPos(actor) {
   return [(actor.x+0.5)*TILE, (actor.y+0.5)*TILE];
 }
 
-const booLetters = [
-  '111 101 1', '100 101 1', '110 011 1', '101 001 0', '111 110 1'
-];
-
-function drawBoo(ctx, x, y) {
-  // The balloon stays clear of the player and within the board at its edges.
-  const left = Math.min(x + 2, ctx.canvas.width / ctx.getTransform().a - 28);
-  const top = y < 27 ? y + 9 : y - 25;
-  box(ctx,'#382c3a', left, top, 25, 16);
-  box(ctx,'#ffe9b2', left + 1, top + 1, 23, 13);
-  box(ctx,'#ffe9b2', left + 3, y < 27 ? top - 2 : top + 14, 3, 3);
-  booLetters.forEach((row, dy) => {
-    for (let dx = 0; dx < row.length; dx++) {
-      if (row[dx] === '1') box(ctx,'#55374a',left + 3 + dx * 2,top + 2 + dy * 2,2,2);
-    }
-  });
-}
-
-// The dark rim keeps the note legible on water, lava and the pale End stone.
-function musicNote(ctx, x, y, color) {
-  box(ctx,'#282637',x+2,y,5,4);
-  box(ctx,'#282637',x+5,y+2,3,3);
-  box(ctx,'#282637',x+2,y+3,3,4);
-  box(ctx,'#282637',x-1,y+5,5,4);
-  box(ctx,color,x+3,y+1,1,6);
-  box(ctx,color,x+4,y+1,2,2);
-  box(ctx,color,x+6,y+3,1,1);
-  box(ctx,color,x,y+6,3,2);
-}
-
-function drawSoloWave(ctx, solo) {
-  // The first chord reaches the next tile immediately. Its trail can then fade past the last row.
-  const front = 1 + solo.age * solo.speed;
-  ctx.save();
-  for (const [col, row, distance] of solo.cells) {
-    const behind = front - distance;
-    if (behind < 0 || behind >= 3) continue;
-    const x = col * TILE, y = row * TILE;
-    const strength = 1 - behind / 3;
-    ctx.globalAlpha = .32 * strength;
-    box(ctx,'#a6f1e5',x+1,y+1,TILE-2,TILE-2);
-    ctx.globalAlpha = strength;
-    box(ctx,'#87dbc9',x+2,y+TILE-4,5,1);
-    box(ctx,'#f3c4ef',x+TILE-7,y+2,5,1);
-    if (distance > 0 && (col + row) % 2 === 0) {
-      musicNote(ctx,x+2,y+6-Math.floor(behind),'#ffdbf0');
-    }
-  }
-  ctx.restore();
-}
-
-function drawSoloist(ctx, x, y, age, left) {
-  const beat = Math.floor(age * 8);
-  ctx.save();
-  ctx.translate(x, y);
-  if (left) ctx.scale(-1,1);
-  ctx.drawImage(spriteImage('guitar',guitarColors,false),-8,-4);
-  box(ctx,'#efc6a0',-3,beat % 2 ? 1 : 3,2,2);
-  box(ctx,'#efc6a0',4,-1,2,2);
-  ctx.restore();
-  const rise = Math.floor(age * 13) % 6;
-  musicNote(ctx,x+6,y-16-rise,'#ffaed8');
-  musicNote(ctx,x-11,y-10-(rise+3)%6,'#a9f8e6');
-}
-
 export function drawBoard(canvas,state) {
   const ctx = configureBoard(canvas,state.width*TILE,state.height*TILE);
   ctx.drawImage(background(canvas,state),0,0,state.width*TILE,state.height*TILE);
@@ -705,7 +637,9 @@ export function drawBoard(canvas,state) {
   if (animateRide) {
     for (const ride of state.decorations) animateRide(ctx,ride,TILE,state.time);
   }
-  if (state.solo) drawSoloWave(ctx,state.solo);
+  const playingAge=performanceAge(state);
+  const songAge=state.time-(state.guitarStartedAt ?? state.time);
+  if (state.solo) drawChordWave(ctx,state.solo,TILE);
   drawMonsterEffects(ctx,state);
   theme?.threats?.(ctx,state,TILE);
   const glint = Math.floor(state.time * 5);
@@ -725,22 +659,28 @@ export function drawBoard(canvas,state) {
     if (monster.type === 'ghast' || (monster.type === 'blaze' && !monster.stun)) {
       hop = 2 + Math.round(Math.sin(state.time * 3.5));
     }
+    const dancing=monster.dance>0;
+    if (dancing) {
+      danceFloor(ctx,x,y,songAge);
+      hop=0;
+    }
     ctx.save();
-    if (monster.dance > 0) {
-      const beat = Math.sin(monster.dance * 12);
-      ctx.translate(Math.round(beat * 2), -Math.round(Math.abs(beat) * 3));
+    if (dancing) {
+      // The feet anchor each alternating side-step; the body leans towards the planted foot.
+      const lean=Math.cos(songAge*Math.PI*2), step=Math.abs(Math.sin(songAge*Math.PI*2));
+      ctx.translate(x+lean*1.45,y+6.9-step*2.3);
+      ctx.rotate(lean*.16);
+      ctx.scale(1+(1-step)*.055, .945+step*.09);
+      ctx.translate(-x,-y-6.9);
     }
     if (monster.watched) ctx.globalAlpha = .62;
     if (monster.type === 'shulker') {
-      shulkerShell(ctx, monster, x-8, y-8);
+      shulkerShell(ctx, monster, x-8, y-8, songAge);
     } else {
-      drawMazeMonster(ctx,monster,x,y-hop,state.time);
+      drawMazeMonster(ctx,monster,x,y-hop,state.time,false,songAge);
     }
     ctx.restore();
-    if (monster.dance > 0) {
-      const rise = Math.floor(monster.dance * 9) % 4;
-      musicNote(ctx,x+4,y-17-hop-rise,'#ffb6dd');
-    }
+    if (dancing) dancerNotes(ctx,x,y,songAge);
     if (monster.type === 'creeper' && monster.windup > 0) {
       // Two warm pulses on the preparing creeper leave the surrounding board steady.
       ctx.save();
@@ -749,45 +689,23 @@ export function drawBoard(canvas,state) {
       ctx.restore();
     }
     showCharge(ctx,monster,x,y-hop);
-    if (state.fear > 0) {
-      box(ctx,'#8de5f5',x+6,y-10,2,3);
-      box(ctx,'#d3f8ff',x+6,y-10,1,1);
-      box(ctx,'#8de5f5',x+9,y-8,1,2);
-    }
-    if (monster.stun > 0) {
-      box(ctx,'#ffed9a',x-5,y-9,3,1);
-      box(ctx,'#ffed9a',x-4,y-10,1,3);
-      box(ctx,'#ffc867',x+3,y-10,2,2);
-    }
+    drawMonsterReaction(ctx,monster,state.fear,x,y-hop,state.time);
   }
   const [x,y] = state.rideRemaining > 0 ? riderPosition(state,TILE) : actorPos(state.player);
   contactShadow(ctx, x, y, state.levitation > 0 ? 9 : 13);
-  if (state.boost > 0) {
-    const vector = {up:[0,1],down:[0,-1],left:[1,0],right:[-1,0]}[state.player.dir] || [-1,0];
-    for (let n=0;n<3;n++) {
-      const step = 8+n*2, spread=n%2===0 ? -3 : 3;
-      const sx=x+vector[0]*step+vector[1]*spread, sy=y+vector[1]*step+vector[0]*spread;
-      box(ctx,n===0 ? '#a7ecdf' : '#70bdae',sx,sy,vector[0] ? 3 : 1,vector[1] ? 3 : 1);
-    }
-  }
+  drawPowerBehind(ctx,state,x,y);
   ctx.save();
   if (state.invulnerable>0 && Math.floor(state.time*8)%2) ctx.globalAlpha=0.55;
-  if (state.invisible > 0) ctx.globalAlpha = 0.42;
+  if (state.invisible > 0) ctx.globalAlpha *= invisibleOpacity(state.invisible);
   const lift = state.levitation > 0 ? 3 + Math.round(Math.sin(state.time * 8)) : 0;
   const stride = lift || state.rideRemaining > 0 ? 0 : walkFrame(state.player);
-  familyFigure(ctx,state,x,y-lift,stride);
-  if (state.solo) drawSoloist(ctx,x,y-lift,state.solo.age,state.player.dir==='left');
+  if (playingAge !== null) {
+    const atlas=loadIllustration('./assets/maze-figures.webp');
+    drawGuitarist(ctx,x,y-lift,playingAge,state.player.dir==='left',Boolean(state.player.target),atlas);
+  } else {
+    familyFigure(ctx,state,x,y-lift,stride);
+  }
   ctx.restore();
-  if (state.invisible > 0) {
-    const drift = Math.floor(state.time * 5) % 3;
-    for (const [dx,dy] of [[-9,-5],[8,1],[-5,9],[5,-9]]) {
-      box(ctx,'#d4b7fc',x+dx,y+dy-drift,2,1);
-    }
-  }
+  drawPowerFront(ctx,state,x,y-lift,state.width*TILE);
   if (state.slow > 0) showSlow(ctx,x,y,state.time);
-  if (state.fear > 0) drawBoo(ctx,x,y);
-  if (state.attack>0) {
-    const points = [[-9,-6],[-10,0],[-8,6],[-3,9],[4,9],[9,5],[10,-1],[8,-6]];
-    for (const [dx,dy] of points) box(ctx,'#ffe095',x+dx,y+dy,3,2);
-  }
 }
