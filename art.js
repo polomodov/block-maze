@@ -207,8 +207,9 @@ function drawTempleLandscape(ctx) {
 const portraitFrames = { kirill: [0, 0], maxim: [1, 0], mom: [0, 1], dad: [1, 1] };
 
 export function drawPortrait(canvas, hero) {
-  const [col, row] = portraitFrames[hero];
-  illustratedFrame(canvas, './assets/hero-portraits.png?v=end-family-1', col, row, 192, 144, ctx => {
+  const [col, row] = portraitFrames[hero] || [0, 0];
+  const sheet = hero === 'pasha' ? './assets/pasha-portrait.png' : './assets/hero-portraits.png?v=end-family-1';
+  illustratedFrame(canvas, sheet, col, row, 192, 144, ctx => {
     box(ctx, '#273d42', 0, 0, 192, 144);
     ctx.save();
     ctx.scale(8, 8);
@@ -270,6 +271,12 @@ const spritePixels = {
     ' qLGGxxGGxxGGUq ',' qLGGxxGGxxGGUq ',' qLGGGGxGGGGGUq ',' qGGGGGGGGGuGUq ',
     ' qGuuGGuuuuuuuUq','  qUUuuuuuuUUUq ','   qqqqqqqqqqq  ','                '
   ],
+  pasha: [
+    '.....lhh..h.....', '....qhhlhhqq....', '...qlhhhhhhlq...', '...qhhfffffhq...',
+    '...qfgqqfgqqq...', '...qkqwgqqgwq...', '....qkffffffq...', '....qtqkffqtq...',
+    '...qtjtbBbtjuq..', '..qtujtbbbtjuq..', '..quujtbbbtjuq..', '..qffutbbbtjfq..',
+    '...quuqNnNquq...', '....qNNnqnNnq...', '....qNnnqnNNq...', '...qPppqqppPq...',
+  ],
   maxim: [
     '.....qhhhhq.....', '....qllhhhdq....', '...qlhhhhhhdq...', '...qhhffhhddq...',
     '...qhffffffdq...', '...qhfofkfokq...', '...qkfwwffffq...', '....qkffkffkq...',
@@ -325,6 +332,7 @@ const baseHeroColors = {
 };
 
 const heroColors = {
+  pasha: { ...baseHeroColors, h:'#463932', l:'#806752', g:'#a3b7b4', j:'#b07b45', t:'#d8a360', u:'#85583a', b:'#262a30', B:'#464851', n:'#34363c', N:'#55575d', p:'#8a8990', P:'#c3bdb3' },
   maxim: { ...baseHeroColors, h:'#493930', l:'#735844', d:'#382c2a', j:'#3c4149', t:'#686f7b', s:'#29303a', A:'#685d9c', B:'#e7e4f5' },
   kirill: { ...baseHeroColors, h:'#846447', l:'#b79671', d:'#63503e', j:'#38b2af', t:'#83d9cc', s:'#287b83' },
   mom: { ...baseHeroColors, h:'#634c3f', l:'#8e7057', d:'#413536', j:'#3a424a', s:'#293138', t:'#874458', T:'#bc576a', A:'#f2cea9', G:'#302d34', g:'#8b99a6' },
@@ -333,6 +341,12 @@ const heroColors = {
 
 // The hairline, shirt collar and scarf also read from behind when the player heads up.
 const heroBackPixels = {
+  pasha: [
+    ...spritePixels.pasha.slice(0,3), '...qhhhlhhhhq...',
+    '...qhhhhhhlhq...', '...qkhhhhhhkq...', '....qkkhhkkq....', '....qtuuuuttq...',
+    '...qtjtttttjuq..', '..qtujjuujjjuq..', '..quujjjjjjjuq..', '..qffujjuujjfq..',
+    '...quujuuujjuq..', ...spritePixels.pasha.slice(13),
+  ],
   maxim: [
     '.....qhhhhq.....', '....qllhhhdq....', '...qlhhhhhhdq...', '...qlhhhhhdhq...',
     '...qhhhhhhhdq...', '...qhdhhhhddq...', '...qkdhhhhdkq...', '....qkdhdhdkq...',
@@ -639,7 +653,8 @@ export function drawBoard(canvas,state) {
     }
   }
   const [x,y] = state.rideRemaining > 0 ? riderPosition(state,TILE) : actorPos(state.player);
-  contactShadow(ctx, x, y, state.levitation > 0 ? 9 : 13);
+  const vaultLift = state.vault ? Math.round(15 * Math.sin(Math.PI * state.vault.progress)) : 0;
+  contactShadow(ctx, x, y, vaultLift || state.levitation > 0 ? 9 : 13);
   if (state.boost > 0) {
     const vector = {up:[0,1],down:[0,-1],left:[1,0],right:[-1,0]}[state.player.dir] || [-1,0];
     for (let n=0;n<3;n++) {
@@ -651,7 +666,11 @@ export function drawBoard(canvas,state) {
   ctx.save();
   if (state.invulnerable>0 && Math.floor(state.time*8)%2) ctx.globalAlpha=0.55;
   if (state.invisible > 0) ctx.globalAlpha = 0.42;
-  const lift = state.levitation > 0 ? 3 + Math.round(Math.sin(state.time * 8)) : 0;
+  const lift = vaultLift || (state.levitation > 0 ? 3 + Math.round(Math.sin(state.time * 8)) : 0);
+  if (vaultLift > 5) {
+    box(ctx,'#b5fff1',x-5,y+7-lift,2,3);
+    box(ctx,'#67d7c8',x+3,y+8-lift,2,2);
+  }
   const stride = lift || state.rideRemaining > 0 ? 0 : walkFrame(state.player);
   sprite(ctx,state.hero,heroColors[state.hero],x-8,y-8-lift,state.player.dir==='left',stride,state.player.dir==='up');
   ctx.restore();

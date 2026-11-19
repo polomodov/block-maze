@@ -1,6 +1,6 @@
-import { createGame } from './engine.js?v=end-family-1';
+import { createGame } from './engine.js?v=family-five-1';
 import { LEVELS } from './levels.js?v=end-family-1';
-import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=end-family-1';
+import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=family-five-1';
 
 const byId = (id) => document.getElementById(id);
 const lobby = byId('lobby');
@@ -9,6 +9,7 @@ const board = byId('board');
 const startButton = byId('play');
 const pauseButton = byId('pause');
 const abilityButton = byId('ability');
+const abilityHint = byId('ability-hint');
 const message = byId('message');
 const resumeButton = byId('resume');
 const soundButton = byId('sound');
@@ -22,6 +23,7 @@ const heroes = {
   maxim: { name: 'Максим', action: 'Ударить' },
   mom: { name: 'Мама', action: 'Исчезнуть' },
   dad: { name: 'Папа', action: 'Сказать «Бу!»' },
+  pasha: { name: 'Паша', action: 'Перепрыгнуть' },
 };
 const monsters = {
   zombie: { name: 'Зомби', hint: 'Упорно идёт за тобой по лабиринту.' },
@@ -66,6 +68,7 @@ let swipe;
 let soundEnabled = false;
 let audio;
 let resumeAfterHelp = false;
+let hintUntil = 0;
 
 function setText(element, value) {
   const text = String(value);
@@ -185,6 +188,8 @@ function updateHud() {
   if (state.fear > 0) abilityLabel = 'Бу! · ' + Math.ceil(state.fear) + ' с';
   buttonText(abilityButton, abilityLabel);
   abilityButton.disabled = state.status !== 'playing' || cooldown > 0 || state.rideRemaining > 0;
+  const showHint = state.hero === 'pasha' && state.status === 'playing' && state.time < hintUntil;
+  setText(abilityHint, showHint ? 'Подойди к монстру. За ним должна быть свободная клетка.' : '');
 }
 
 function updateScreen() {
@@ -251,6 +256,7 @@ function start(hero, levelId) {
   game = createGame(hero, levelId);
   game.start();
   swipe = undefined;
+  hintUntil = 0;
   document.title = LEVELS[levelId].title + ' · Блок Аркада';
   setText(byId('hero-name'), heroes[hero].name);
   drawPortrait(byId('hud-portrait'), hero);
@@ -281,15 +287,38 @@ function togglePause() {
 }
 
 function activate() {
-  if (game?.state.status !== 'playing' || !game.activate()) return;
+  if (game?.state.status !== 'playing') return;
+  if (!game.activate()) {
+    if (game.state.hero === 'pasha' && game.state.cooldown === 0 && game.state.rideRemaining === 0) {
+      hintUntil = game.state.time + 4;
+      updateHud();
+    }
+    return;
+  }
+  hintUntil = 0;
   if (game.state.hero === 'dad') playBoo();
   else if (game.state.hero === 'mom') playNote(1046, 0.25, 'sine');
+  else if (game.state.hero === 'pasha') playNote(780, 0.16);
   else playNote(game.state.hero === 'kirill' ? 920 : 175, 0.18, 'square');
-  updateHud();
+  if (game.state.status === 'playing') updateHud();
+  else updateScreen();
+}
+
+function saveSelection(hero = selectedValue('hero'), levelId = selectedValue('level')) {
+  const url = new URL(location.href);
+  url.searchParams.set('hero', hero);
+  url.searchParams.set('level', levelId);
+  history.replaceState(null, '', url);
 }
 
 document.querySelectorAll('input[name="level"]').forEach((radio) => {
-  radio.addEventListener('change', showLevelPreview);
+  radio.addEventListener('change', () => {
+    showLevelPreview();
+    saveSelection();
+  });
+});
+document.querySelectorAll('input[name="hero"]').forEach((radio) => {
+  radio.addEventListener('change', () => saveSelection());
 });
 startButton.addEventListener('click', () => start(selectedValue('hero'), selectedValue('level')));
 pauseButton.addEventListener('click', togglePause);
@@ -299,6 +328,8 @@ resumeButton.addEventListener('click', () => {
     resume();
   } else if (game.state.status === 'won' && game.nextLevel()) {
     swipe = undefined;
+    hintUntil = 0;
+    saveSelection(game.state.hero, game.state.levelId);
     document.title = LEVELS[game.state.levelId].title + ' · Блок Аркада';
     playNote(650, 0.2);
     run();
@@ -409,7 +440,12 @@ board.addEventListener('lostpointercapture', (event) => {
 });
 
 // Render the pixel artwork at its native resolution; CSS scales it to the screen.
-const requestedLevel = new URLSearchParams(location.search).get('level');
+const selection = new URLSearchParams(location.search);
+const requestedHero = selection.get('hero');
+if (Object.hasOwn(heroes, requestedHero)) {
+  document.querySelector(`input[name="hero"][value="${requestedHero}"]`).checked = true;
+}
+const requestedLevel = selection.get('level');
 if (Object.hasOwn(LEVELS, requestedLevel)) {
   document.querySelector(`input[name="level"][value="${requestedLevel}"]`).checked = true;
 }

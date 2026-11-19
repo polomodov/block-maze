@@ -322,8 +322,13 @@ p {
 }
 .heroes {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
+}
+@media (min-width: 641px) and (max-width: 820px) {
+  .heroes { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .hero { grid-column: span 2; }
+  .hero:nth-last-child(2) { grid-column: 2 / span 2; }
 }
 .hero {
   --hero-ink: #72cffa;
@@ -339,6 +344,7 @@ p {
 .hero.maxim { --hero-ink: #ffb765; }
 .hero.mom { --hero-ink: #c9aaff; }
 .hero.dad { --hero-ink: #ffa895; }
+.hero.pasha { --hero-ink: #86e9db; }
 .hero:hover {
   border-color: #83938a;
 }
@@ -420,6 +426,7 @@ p {
 .sword,
 .ghost,
 .shout,
+.vault,
 .heart,
 .play-icon {
   display: inline-block;
@@ -463,6 +470,12 @@ p {
 .shout {
   background: #ffa895;
   clip-path: polygon(0 13%, 100% 13%, 100% 71%, 48% 71%, 20% 99%, 20% 71%, 0 71%);
+}
+.vault {
+  width: 15px;
+  height: 15px;
+  background: #86e9db;
+  clip-path: polygon(0 94%, 0 57%, 16% 57%, 16% 31%, 39% 31%, 39% 13%, 72% 13%, 72% 0, 100% 21%, 73% 47%, 73% 34%, 47% 34%, 47% 50%, 29% 50%, 29% 73%, 14% 73%, 14% 94%);
 }
 .primary {
   display: flex;
@@ -722,6 +735,13 @@ dialog {
   margin-top: 13px;
   flex-wrap: wrap;
 }
+#ability-hint {
+  margin-top: 9px;
+  color: #aee8d4;
+  text-align: center;
+  font-size: .92rem;
+}
+#ability-hint:empty { display: none; }
 .key-hints {
   font-size: 0.85rem;
   color: var(--muted);
@@ -795,7 +815,7 @@ dialog .primary {
     min-width: 0;
   }
 }
-@media (min-width: 641px) and (max-width: 960px) {
+@media (min-width: 641px) and (max-width: 1100px) {
   .setup { display: block; }
   .guide { margin-top: 24px; }
   .guide-body {
@@ -917,6 +937,17 @@ dialog .primary {
   .heroes {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 9px;
+  }
+  .hero:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+  .hero:last-child:nth-child(odd) .hero-copy {
+    justify-content: center;
+    border-top: 0;
+    border-left: 2px solid var(--hero-ink);
   }
   .portrait-frame {
     aspect-ratio: 8 / 5;

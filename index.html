@@ -37,8 +37,8 @@
       crossorigin
     />
     <link rel="preload" as="image" href="./assets/hero-portraits.png?v=end-family-1" />
-    <link rel="stylesheet" href="./styles.css?v=family-games-1" />
-    <script type="module" src="./game.js?v=end-family-1"></script>
+    <link rel="stylesheet" href="./styles.css?v=family-five-1" />
+    <script type="module" src="./game.js?v=family-five-1"></script>
   </head>
   <body>
     <header class="topbar">
@@ -168,6 +168,17 @@
                   <span><i class="shout" aria-hidden="true"></i>Крик «Бу!»</span>
                 </span>
               </label>
+              <label class="hero pasha">
+                <input type="radio" name="hero" value="pasha" />
+                <span class="portrait-frame">
+                  <canvas data-hero="pasha" aria-hidden="true"></canvas>
+                  <span class="selector" aria-hidden="true"></span>
+                </span>
+                <span class="hero-copy">
+                  <strong>Паша</strong>
+                  <span><i class="vault" aria-hidden="true"></i>Прыжок через монстра</span>
+                </span>
+              </label>
             </div>
             <button id="play" class="primary">
               <span class="play-icon" aria-hidden="true"></span>Начать игру
@@ -238,6 +249,7 @@
             ><kbd>WASD</kbd> ходить <kbd>Пробел</kbd> способность</span
           >
         </div>
+        <p id="ability-hint" role="status"></p>
       </section>
     </main>
     <dialog id="help-dialog" aria-labelledby="help-heading">
@@ -279,6 +291,7 @@
           <li><b>Максим</b> ударом оглушает монстров рядом на 4 секунды.</li>
           <li><b>Мама</b> на 4 секунды становится невидимой. Монстры теряют её из виду, и она может пройти сквозь них.</li>
           <li><b>Папа</b> кричит «Бу!». На 3 секунды монстры разбегаются и дают ему пройти.</li>
+          <li><b>Паша</b> перепрыгивает монстра в соседней клетке по ходу движения. Клетка за монстром должна быть свободна. Если места нет, способность остаётся готовой.</li>
         </ul>
         <button class="primary" autofocus>Понятно</button>
       </form>

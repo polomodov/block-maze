@@ -267,3 +267,73 @@ test('Typhoon lets the hero walk past and checks monster contact upon landing', 
   assert.equal(state.lives, 2);
   assert.equal(state.rideRemaining, 0);
 });
+
+test('Pasha vaults over a moving zombie, pauses in midair and collects only at the landing', () => {
+  const game = createGame('pasha');
+  const { state } = game;
+  assert.equal(state.hero, 'pasha');
+  game.start();
+  Object.assign(state.player, { x: 11, y: 13 });
+  const zombie = state.monsters.find(m => m.type === 'zombie');
+  Object.assign(zombie, { x: 12, y: 13 });
+  state.gems.add(13 * state.width + 13);
+  game.turn('right');
+  game.update(0.035);
+  assert.ok(state.player.x > 11);
+  assert.ok(game.activate());
+  assert.equal(state.cooldown, 30);
+  assert.deepEqual([state.vault.toX, state.vault.toY], [13, 13]);
+  game.update(0.15);
+  assert.ok(state.vault.progress > 0 && state.vault.progress < 1);
+  assert.equal(state.lives, 3);
+  game.pause();
+  const progress = state.vault.progress;
+  game.update(2);
+  assert.equal(state.vault.progress, progress);
+  game.resume();
+  game.update(0.2);
+  assert.equal(state.vault, null);
+  assert.equal(state.player.x, 13);
+  assert.equal(state.lives, 3);
+  assert.equal(zombie.stun, 0);
+  assert.ok(state.gems.has(13 * state.width + 12));
+  assert.ok(!state.gems.has(13 * state.width + 13));
+  assert.ok(!game.activate());
+});
+
+test('Pasha needs a monster ahead, an open corridor and a free landing to spend a charge', () => {
+  const game = createGame('pasha');
+  const { state } = game;
+  game.start();
+  for (const [x, y, middleOccupied, landingOccupied] of [
+    [11,13,false,false], [11,13,true,true], [4,3,true,false], [5,3,true,false],
+  ]) {
+    Object.assign(state.player, { x, y });
+    Object.assign(state.monsters[0], { x: middleOccupied ? x + 1 : 1, y });
+    Object.assign(state.monsters[1], { x: landingOccupied ? x + 2 : 1, y });
+    game.turn('right');
+    assert.equal(game.activate(), false);
+    assert.equal(state.cooldown, 0);
+    assert.equal(state.vault, null);
+    assert.equal(state.player.x, x);
+  }
+});
+
+test('Pasha can jump straight up a corridor and can win by landing on the last emerald', () => {
+  const game = createGame('pasha');
+  const { state } = game;
+  game.start();
+  Object.assign(state.player, { x: 1, y: 3 });
+  Object.assign(state.monsters[0], { x: 1, y: 2 });
+  Object.assign(state.monsters[1], { x: 17, y: 1 });
+  state.gems = new Set([state.width + 1]);
+  game.turn('up');
+  assert.ok(game.activate());
+  game.update(0.36);
+  assert.equal(state.status, 'won');
+  assert.deepEqual([state.player.x, state.player.y], [1,1]);
+  assert.ok(game.nextLevel());
+  assert.equal(state.hero, 'pasha');
+  assert.equal(state.vault, null);
+  assert.ok(state.cooldown > 29);
+});

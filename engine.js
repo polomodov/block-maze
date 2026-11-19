@@ -24,7 +24,7 @@ function countdown(value, seconds) {
 
 export function createGame(hero = 'kirill', levelId = 'temple') {
   const state = {
-    hero: ['kirill', 'maxim', 'mom', 'dad'].includes(hero) ? hero : 'kirill',
+    hero: ['kirill', 'maxim', 'mom', 'dad', 'pasha'].includes(hero) ? hero : 'kirill',
     status: 'ready', lives: 3, time: 0, cooldown: 0,
   };
   let level;
@@ -78,6 +78,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     state.levitation = 0;
     state.slow = 0;
     state.rideRemaining = 0;
+    state.vault = null;
     state.boost = 0;
     state.attack = 0;
     state.fear = 0;
@@ -215,8 +216,38 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     }
   }
 
+  function beginVault() {
+    const player = state.player;
+    const dir = player.target ? player.dir : queued || player.dir;
+    if (!dir) return false;
+    const [dx, dy] = STEPS[dir];
+    const x = Math.round(player.x) + dx, y = Math.round(player.y) + dy;
+    const toX = x + dx, toY = y + dy;
+    const occupied = (col, row) => state.monsters.some(monster =>
+      Math.round(monster.x) === col && Math.round(monster.y) === row);
+    if (!isFloor(x, y) || !isFloor(toX, toY) || !occupied(x, y) || occupied(toX, toY)) return false;
+    state.vault = { fromX: player.x, fromY: player.y, toX, toY, progress: 0 };
+    player.target = null;
+    player.dir = dir;
+    queued = null;
+    waiting = false;
+    return true;
+  }
+
+  function advanceVault(seconds) {
+    const vault = state.vault;
+    vault.progress = Math.min(1, vault.progress + seconds / 0.35);
+    state.player.x = vault.fromX + (vault.toX - vault.fromX) * vault.progress;
+    state.player.y = vault.fromY + (vault.toY - vault.fromY) * vault.progress;
+    if (vault.progress === 1) {
+      state.vault = null;
+      collect(vault.toX, vault.toY);
+    }
+  }
+
   function activate() {
     if (state.status !== 'playing' || state.cooldown > 0 || state.rideRemaining > 0) return false;
+    if (state.hero === 'pasha' && !beginVault()) return false;
     state.cooldown = 30;
     switch (state.hero) {
       case 'kirill':
@@ -259,7 +290,8 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     state.cooldown = countdown(state.cooldown, seconds);
     state.boost = countdown(state.boost, seconds);
     state.invulnerable = countdown(state.invulnerable, seconds);
-    if (state.rideRemaining === 0) move(state.player, seconds * speed, steerPlayer, collect);
+    if (state.vault) advanceVault(seconds);
+    else if (state.rideRemaining === 0) move(state.player, seconds * speed, steerPlayer, collect);
     if (state.rideRemaining > 0) {
       state.rideRemaining = countdown(state.rideRemaining, seconds);
       if (state.rideRemaining === 0) {
@@ -288,7 +320,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     state.invisible = countdown(state.invisible, seconds);
     state.fear = countdown(state.fear, seconds);
     if (waiting || state.rideRemaining > 0 || state.invulnerable > 0 || state.invisible > 0 || state.fear > 0) return;
-    const touched = state.monsters.some(monster => monster.type !== 'shulker' && monster.type !== 'creeper' && !monster.leap && monster.stun === 0 &&
+    const touched = !state.vault && state.monsters.some(monster => monster.type !== 'shulker' && monster.type !== 'creeper' && !monster.leap && monster.stun === 0 &&
       Math.hypot(monster.x - state.player.x, monster.y - state.player.y) < 0.58);
     if (!touched && !effectHit) return;
     if (--state.lives === 0) {
