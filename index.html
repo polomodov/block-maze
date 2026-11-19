@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#101719" />
+    <meta
+      name="description"
+      content="Выбери Кирилла или Максима и забери изумруды из затерянного храма. Семейная пиксельная аркада для компьютера и телефона."
+    />
+    <title>Храм изумруда · Блок Аркада</title>
+    <link rel="icon" href="./assets/mark.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href="./assets/press-start-2p.ttf"
+      as="font"
+      type="font/ttf"
+      crossorigin
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./game.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="bar-inner">
+        <div class="wordmark" aria-label="Блок Аркада">
+          <img src="./assets/mark.svg" width="32" height="32" alt="" />БЛОК<span
+            >АРКАДА</span
+          >
+        </div>
+        <nav aria-label="Настройки игры">
+          <button
+            id="sound"
+            class="tool sound"
+            type="button"
+            aria-label="Включить звук"
+            aria-pressed="false"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M3 9h4l5-4v14l-5-4H3z" fill="currentColor" />
+              <path class="silent" d="m16 9 6 6m0-6-6 6" />
+              <path class="audible" d="M15 8q5 4 0 8m3-11q8 7 0 14" />
+            </svg>
+            <span data-label class="sr-only">Звук выкл.</span>
+          </button>
+          <button id="help" class="tool">
+            <span class="help-icon" aria-hidden="true">?</span>Как играть
+          </button>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <section id="lobby" aria-label="Выбор героя">
+        <div class="banner">
+          <canvas id="landscape" aria-hidden="true"></canvas>
+          <div class="banner-copy">
+            <h1>ХРАМ<br /><span>ИЗУМРУДА</span></h1>
+            <p>Собери изумруды и ускользни от монстров.</p>
+          </div>
+        </div>
+        <div class="setup">
+          <section class="selection" aria-labelledby="choose-heading">
+            <h2 id="choose-heading">Выбери героя</h2>
+            <div
+              class="heroes"
+              role="radiogroup"
+              aria-labelledby="choose-heading"
+            >
+              <label class="hero kirill">
+                <input type="radio" name="hero" value="kirill" checked />
+                <span class="portrait-frame"
+                  ><canvas data-hero="kirill" aria-hidden="true"></canvas
+                  ><span class="selector" aria-hidden="true"></span
+                ></span>
+                <span class="hero-copy"
+                  ><strong>Кирилл</strong
+                  ><span
+                    ><i class="bolt" aria-hidden="true"></i>Ускорение</span
+                  ></span
+                >
+              </label>
+              <label class="hero maxim">
+                <input type="radio" name="hero" value="maxim" />
+                <span class="portrait-frame"
+                  ><canvas data-hero="maxim" aria-hidden="true"></canvas
+                  ><span class="selector" aria-hidden="true"></span
+                ></span>
+                <span class="hero-copy"
+                  ><strong>Максим</strong
+                  ><span
+                    ><i class="sword" aria-hidden="true"></i>Удар по
+                    монстру</span
+                  ></span
+                >
+              </label>
+            </div>
+            <button id="play" class="primary">
+              <span class="play-icon" aria-hidden="true"></span>Начать игру
+            </button>
+          </section>
+          <aside class="guide" aria-labelledby="guide-heading">
+            <h2 id="guide-heading">В лабиринте</h2>
+            <div class="guide-body">
+              <div class="mission">
+                <div class="gem-box">
+                  <img src="./assets/mark.svg" width="34" height="34" alt="" />
+                </div>
+                <div>
+                  <h3>Изумруды</h3>
+                  <p>Собери все, чтобы пройти храм.</p>
+                </div>
+              </div>
+              <div class="monsters">
+                <h3>За тобой охотятся</h3>
+                <ul>
+                  <li><canvas data-monster="creeper"></canvas>Крипер</li>
+                  <li><canvas data-monster="zombie"></canvas>Зомби</li>
+                  <li><canvas data-monster="spider"></canvas>Паук</li>
+                </ul>
+              </div>
+              <div class="life-note">
+                <i class="heart" aria-hidden="true"></i>У героя три жизни
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+      <section id="arena" hidden aria-label="Игра в лабиринте">
+        <div class="arena-header">
+          <button id="menu" class="minor">Выбор героя</button>
+          <h2>Храм изумруда</h2>
+          <button id="pause" class="minor">Пауза</button>
+        </div>
+        <div class="hud" aria-live="off">
+          <strong id="hero-name"></strong
+          ><span
+            ><i class="heart" aria-hidden="true"></i> Жизни
+            <b id="lives"></b></span
+          ><span
+            ><img src="./assets/mark.svg" width="21" height="21" alt="" />
+            Изумруды <b id="gems"></b
+          ></span>
+        </div>
+        <div class="board-wrap">
+          <canvas
+            id="board"
+            tabindex="0"
+            aria-label="Лабиринт. Движение стрелками или WASD, способность пробелом."
+          ></canvas>
+          <div id="message" hidden>
+            <div class="message-card">
+              <h2 id="message-title"></h2>
+              <p id="message-copy"></p>
+              <button id="resume" class="primary">Продолжить</button>
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <div id="dpad" aria-label="Направление движения">
+            <button data-dir="up" aria-label="Вверх">▲</button
+            ><button data-dir="left" aria-label="Влево">◀</button
+            ><button data-dir="down" aria-label="Вниз">▼</button
+            ><button data-dir="right" aria-label="Вправо">▶</button>
+          </div>
+          <button id="ability" class="primary">Способность</button
+          ><span class="key-hints"
+            ><kbd>WASD</kbd> ходить <kbd>Пробел</kbd> способность</span
+          >
+        </div>
+      </section>
+    </main>
+    <dialog id="help-dialog" aria-labelledby="help-heading">
+      <form method="dialog">
+        <h2 id="help-heading">Как играть</h2>
+        <p>
+          Собери все изумруды в храме. Встреча с монстром отнимает одну из трёх
+          жизней.
+        </p>
+        <h3>Движение</h3>
+        <p>
+          На компьютере нажимай стрелки или WASD. На телефоне проведи пальцем по
+          полю или нажми кнопку направления. Герой сам идёт до стены. Поворот
+          можно задать заранее.
+        </p>
+        <h3>Способности</h3>
+        <p>
+          Кирилл ускоряется на 4 секунды. Максим оглушает монстров рядом на 4
+          секунды. Нажми пробел или кнопку способности. Через 30 секунд игры
+          способность снова готова.
+        </p>
+        <button class="primary" autofocus>Понятно</button>
+      </form>
+    </dialog>
+  </body>
+</html>
