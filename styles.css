@@ -184,7 +184,7 @@ main {
   color: #fff4cc;
   text-shadow: 0 0.095em #23312b;
 }
-.banner h1 span {
+.banner h1 #title-second {
   color: var(--lime);
 }
 .banner p {
@@ -193,9 +193,58 @@ main {
   font-size: 1rem;
   text-shadow: 1px 1px #162d2c;
 }
+.levels {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: none;
+}
+.levels strong {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.level-options {
+  display: flex;
+  gap: 6px;
+}
+.level-option {
+  position: relative;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  min-height: 38px;
+  border: 1px solid #455353;
+  background: #202b2e;
+  color: #c6d0c9;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.level-option:hover { border-color: #8da38c; }
+.level-option:has(input:focus-visible) {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+.level-option:has(input:checked) {
+  color: var(--lime);
+  border-color: #adc968;
+  background: #2f3d2c;
+}
+.level-number {
+  font: 0.63rem var(--pixel);
+  color: #a8b6a8;
+}
+.level-option:has(input:checked) .level-number { color: inherit; }
+#lobby[data-level="arcade"] .banner { border-color: #6a526c; }
+#lobby[data-level="arcade"] #title-second { color: #ffbe8b; }
 .setup {
   display: grid;
-  grid-template-columns: minmax(0, 1.85fr) minmax(268px, 1fr);
+  grid-template-columns: minmax(0, 2.4fr) minmax(260px, 1fr);
   gap: 26px;
   margin-top: 26px;
   align-items: start;
@@ -214,7 +263,7 @@ p {
 }
 .heroes {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 .hero {
@@ -240,7 +289,7 @@ p {
 .portrait-frame {
   position: relative;
   display: block;
-  height: clamp(118px, 13.4vw, 160px);
+  aspect-ratio: 4 / 3;
   overflow: hidden;
   background: #283e46;
   border-bottom: 1px solid #4a5b56;
@@ -278,7 +327,7 @@ p {
   transform: rotate(-45deg);
 }
 .hero-copy {
-  padding: 13px 15px 15px;
+  padding: 13px 10px 15px;
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -296,6 +345,8 @@ p {
 }
 .bolt,
 .sword,
+.ghost,
+.shout,
 .heart,
 .play-icon {
   display: inline-block;
@@ -326,6 +377,19 @@ p {
     12% 35%,
     26% 49%
   );
+}
+.ghost,
+.shout {
+  width: 15px;
+  height: 15px;
+}
+.ghost {
+  background: #c9aaff;
+  clip-path: polygon(22% 13%, 34% 13%, 34% 0, 68% 0, 68% 13%, 81% 13%, 81% 25%, 93% 25%, 93% 94%, 73% 80%, 53% 95%, 33% 80%, 9% 94%, 9% 26%, 22% 26%);
+}
+.shout {
+  background: #ffa895;
+  clip-path: polygon(0 13%, 100% 13%, 100% 71%, 48% 71%, 20% 99%, 20% 71%, 0 71%);
 }
 .primary {
   display: flex;
@@ -429,6 +493,7 @@ p {
 }
 .monsters li {
   flex: 1;
+  min-width: 0;
   display: grid;
   justify-items: center;
   gap: 6px;
@@ -438,8 +503,9 @@ p {
 .monsters canvas {
   background: #263332;
   border: 1px solid #3d4d48;
-  width: 50px;
-  height: 50px;
+  width: min(100%, 48px);
+  aspect-ratio: 1;
+  height: auto;
   image-rendering: pixelated;
 }
 .life-note {
@@ -598,6 +664,12 @@ dialog p {
   line-height: 1.55;
   margin: 5px 0 15px;
 }
+.help-abilities {
+  margin: 5px 0 15px;
+  padding-left: 1.2em;
+  color: #d0dbd3;
+}
+.help-abilities li + li { margin-top: 4px; }
 dialog .primary {
   margin-top: 18px;
   width: 100%;
@@ -613,6 +685,20 @@ dialog .primary {
     max-width: 700px;
     min-width: 0;
   }
+}
+@media (min-width: 641px) and (max-width: 960px) {
+  .setup { display: block; }
+  .guide { margin-top: 24px; }
+  .guide-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .monsters { border: 0; }
+  .monsters ul { gap: 12px; }
+  .monsters li { flex: none; }
+  .monsters canvas { width: 40px; }
 }
 @media (max-width: 770px) {
   .bar-inner,
@@ -632,9 +718,6 @@ dialog .primary {
   .gem-box {
     width: 38px;
     height: 40px;
-  }
-  .portrait-frame {
-    height: 130px;
   }
   .hero-copy {
     padding: 12px 9px;
@@ -695,11 +778,18 @@ dialog .primary {
     font-size: 0.92rem;
     margin-bottom: 12px;
   }
+  .levels { display: block; padding: 8px; }
+  .levels strong { position: absolute; clip-path: inset(50%); }
+  .level-options { width: 100%; }
+  .level-option { flex: 1; gap: 5px; padding: 7px 3px; font-size: 0.85rem; min-height: 42px; }
+  .level-number { font-size: 0.55rem; }
   .heroes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 9px;
   }
   .portrait-frame {
-    height: clamp(94px, 29vw, 157px);
+    height: clamp(75px, 23vw, 118px);
+    aspect-ratio: auto;
   }
   .hero-copy {
     padding: 10px;
@@ -731,11 +821,6 @@ dialog .primary {
   }
   .monsters ul {
     justify-content: space-between;
-  }
-  .monsters li {
-    display: flex;
-    gap: 6px;
-    align-items: center;
   }
   .monsters canvas {
     width: 35px;

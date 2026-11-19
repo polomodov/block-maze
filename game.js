@@ -1,4 +1,5 @@
 import { createGame } from './engine.js';
+import { LEVELS } from './levels.js';
 import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js';
 
 const byId = (id) => document.getElementById(id);
@@ -18,6 +19,16 @@ const gems = byId('gems');
 const heroes = {
   kirill: { name: 'Кирилл', action: 'Ускориться' },
   maxim: { name: 'Максим', action: 'Ударить' },
+  mom: { name: 'Мама', action: 'Исчезнуть' },
+  dad: { name: 'Папа', action: 'Сказать «Бу!»' },
+};
+const monsterNames = {
+  zombie: 'Зомби', creeper: 'Крипер', spider: 'Паук',
+  slime: 'Слизень', skeleton: 'Скелет',
+};
+const descriptions = {
+  temple: 'Собери изумруды и ускользни от монстров.',
+  arcade: 'Ищи изумруды между каруселью и горкой.',
 };
 const directions = {
   ArrowUp: 'up', KeyW: 'up',
@@ -59,6 +70,31 @@ function playNote(frequency, duration, type = 'triangle') {
   oscillator.stop(now + duration);
 }
 
+// A descending voice with two resonances for the vowel in «Бу!».
+function playBoo() {
+  if (!soundEnabled || audio?.state !== 'running') return;
+  const voice = audio.createOscillator();
+  const gain = audio.createGain();
+  const now = audio.currentTime;
+  voice.type = 'sawtooth';
+  voice.frequency.setValueAtTime(152, now);
+  voice.frequency.exponentialRampToValueAtTime(88, now + 0.36);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.24, now + 0.035);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+  for (const frequency of [340, 820]) {
+    const formant = audio.createBiquadFilter();
+    formant.type = 'bandpass';
+    formant.frequency.value = frequency;
+    formant.Q.value = 4;
+    voice.connect(formant);
+    formant.connect(gain);
+  }
+  gain.connect(audio.destination);
+  voice.start(now);
+  voice.stop(now + 0.4);
+}
+
 function displaySound() {
   soundButton.setAttribute('aria-label', 'Звук');
   soundButton.title = soundEnabled ? 'Выключить звук' : 'Включить звук';
@@ -81,19 +117,48 @@ soundButton.addEventListener('click', async () => {
   }
 });
 
+function selectedValue(group) {
+  return document.querySelector(`input[name="${group}"]:checked`).value;
+}
+
+function showLevelPreview() {
+  const levelId = selectedValue('level');
+  const level = LEVELS[levelId];
+  const [first, second] = level.title.toUpperCase().split(' ');
+  lobby.dataset.level = levelId;
+  setText(byId('title-first'), first);
+  setText(byId('title-second'), second);
+  setText(byId('level-description'), descriptions[levelId]);
+  document.title = level.title + ' · Блок Аркада';
+  drawLandscape(byId('landscape'), levelId);
+  const portraits = level.monsters.map(({ type }) => {
+    const item = document.createElement('li');
+    const canvas = document.createElement('canvas');
+    canvas.dataset.monster = type;
+    canvas.setAttribute('aria-hidden', 'true');
+    drawMonsterPortrait(canvas, type);
+    item.append(canvas, monsterNames[type]);
+    return item;
+  });
+  byId('monster-list').replaceChildren(...portraits);
+}
+
 function updateHud() {
   const state = game.state;
   setText(lives, state.lives);
   setText(gems, state.collected + ' / ' + state.totalGems);
   const cooldown = Math.ceil(state.cooldown);
-  buttonText(abilityButton, cooldown > 0
-    ? heroes[state.hero].action + ' · ' + cooldown + ' с'
-    : heroes[state.hero].action);
+  const action = heroes[state.hero].action;
+  let abilityLabel = cooldown > 0 ? action + ' · ' + cooldown + ' с' : action;
+  if (state.invisible > 0) abilityLabel = 'Невидима · ' + Math.ceil(state.invisible) + ' с';
+  if (state.fear > 0) abilityLabel = 'Бу! · ' + Math.ceil(state.fear) + ' с';
+  buttonText(abilityButton, abilityLabel);
   abilityButton.disabled = state.status !== 'playing' || cooldown > 0;
 }
 
 function updateScreen() {
-  const { status, totalGems } = game.state;
+  const { status, totalGems, levelId } = game.state;
+  setText(byId('arena-title'), LEVELS[levelId].title);
   const paused = status === 'paused';
   const finished = status === 'won' || status === 'lost';
   message.hidden = !paused && !finished;
@@ -104,7 +169,9 @@ function updateScreen() {
   if (message.hidden) return;
   const screens = {
     paused: ['Пауза', 'Лабиринт подождёт.', 'Продолжить'],
-    won: ['Победа!', 'Все изумруды собраны (' + totalGems + ').', 'Сыграть ещё'],
+    won: levelId === 'temple'
+      ? ['Храм пройден!', 'Все изумруды собраны. Впереди карусель и горка!', 'В игровой центр']
+      : ['Победа!', 'Все изумруды игрового центра собраны (' + totalGems + ').', 'Сыграть ещё'],
     lost: ['Попытки закончились', 'Собрано изумрудов: ' + game.state.collected + ' из ' + totalGems + '.', 'Попробовать ещё'],
   };
   const [title, copy, action] = screens[status];
@@ -141,13 +208,15 @@ function run() {
   frame = requestAnimationFrame(animate);
 }
 
-function start() {
-  const hero = document.querySelector('input[name="hero"]:checked').value;
-  game = createGame(hero);
+function start(hero, levelId) {
+  game = createGame(hero, levelId);
   game.start();
+  swipe = undefined;
+  document.title = LEVELS[levelId].title + ' · Блок Аркада';
   setText(byId('hero-name'), heroes[hero].name);
   lobby.hidden = true;
   arena.hidden = false;
+  window.scrollTo(0, 0);
   playNote(520, 0.13);
   run();
 }
@@ -173,25 +242,41 @@ function togglePause() {
 
 function activate() {
   if (game?.state.status !== 'playing' || !game.activate()) return;
-  playNote(game.state.hero === 'kirill' ? 920 : 175, 0.18, 'square');
+  if (game.state.hero === 'dad') playBoo();
+  else if (game.state.hero === 'mom') playNote(1046, 0.25, 'sine');
+  else playNote(game.state.hero === 'kirill' ? 920 : 175, 0.18, 'square');
   updateHud();
 }
 
-startButton.addEventListener('click', start);
+document.querySelectorAll('input[name="level"]').forEach((radio) => {
+  radio.addEventListener('change', showLevelPreview);
+});
+startButton.addEventListener('click', () => start(selectedValue('hero'), selectedValue('level')));
 pauseButton.addEventListener('click', togglePause);
 abilityButton.addEventListener('click', activate);
 resumeButton.addEventListener('click', () => {
-  if (game?.state.status === 'paused') resume();
-  else start();
+  if (game.state.status === 'paused') {
+    resume();
+  } else if (game.state.status === 'won' && game.state.levelId === 'temple') {
+    game.nextLevel();
+    swipe = undefined;
+    document.title = LEVELS[game.state.levelId].title + ' · Блок Аркада';
+    playNote(650, 0.2);
+    run();
+  } else {
+    start(game.state.hero, game.state.levelId);
+  }
 });
 byId('menu').addEventListener('click', () => {
   cancelAnimationFrame(frame);
+  document.querySelector(`input[name="level"][value="${game.state.levelId}"]`).checked = true;
+  showLevelPreview();
   game = undefined;
   swipe = undefined;
   arena.hidden = true;
   lobby.hidden = false;
   const selected = document.querySelector('input[name="hero"]:checked');
-  selected.focus({ preventScroll: true });
+  selected.focus();
 });
 
 byId('help').addEventListener('click', () => {
@@ -273,7 +358,9 @@ board.addEventListener('lostpointercapture', (event) => {
 });
 
 // Render the pixel artwork at its native resolution; CSS scales it to the screen.
-drawLandscape(byId('landscape'));
+if (new URLSearchParams(location.search).get('level') === 'arcade') {
+  document.querySelector('input[name="level"][value="arcade"]').checked = true;
+}
+showLevelPreview();
 document.querySelectorAll('canvas[data-hero]').forEach((canvas) => drawPortrait(canvas, canvas.dataset.hero));
-document.querySelectorAll('canvas[data-monster]').forEach((canvas) => drawMonsterPortrait(canvas, canvas.dataset.monster));
 displaySound();

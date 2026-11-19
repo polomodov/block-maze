@@ -1,3 +1,5 @@
+import { arcadeTile, drawArcadeLandscape, drawAttraction, drawRideLights } from './arcade-art.js';
+
 // The artwork is drawn on integer grids and scaled by the browser as pixel art.
 function surface(canvas, width, height) {
   if (canvas.width !== width) canvas.width = width;
@@ -104,8 +106,12 @@ function temple(ctx, x, ground, scale) {
   ctx.restore();
 }
 
-export function drawLandscape(canvas) {
+export function drawLandscape(canvas, levelId = 'temple') {
   const ctx = surface(canvas, 480, 100);
+  if (levelId === 'arcade') {
+    drawArcadeLandscape(ctx);
+    return;
+  }
   box(ctx, '#7ca6a2', 0, 0, 480, 100);
   box(ctx, '#8ab1a8', 0, 32, 480, 18);
   box(ctx, '#a8bba5', 0, 50, 480, 50);
@@ -146,9 +152,14 @@ export function drawLandscape(canvas) {
   }
 }
 
-function portraitBackdrop(ctx, blue) {
-  const p = blue ? ['#75a8a2','#679996','#548684','#487470','#385f56','#82aaa1'] :
-    ['#b9a073','#ae9264','#9b825d','#867653','#6b6147','#c3ad7c'];
+const parentBackdrops = {
+  mom: ['#9989b3','#8e7ca8','#796997','#6f648b','#555676','#b3a0c3'],
+  dad: ['#98aba3','#899e97','#798f85','#657e77','#516a65','#b0c1af'],
+};
+
+function portraitBackdrop(ctx, hero) {
+  const p = parentBackdrops[hero] || (hero === 'kirill' ? ['#75a8a2','#679996','#548684','#487470','#385f56','#82aaa1'] :
+    ['#b9a073','#ae9264','#9b825d','#867653','#6b6147','#c3ad7c']);
   box(ctx,p[0],0,0,96,72);
   box(ctx,p[5],56,7,40,2);
   box(ctx,p[5],48,9,37,1);
@@ -167,10 +178,104 @@ function portraitBackdrop(ctx, blue) {
   }
 }
 
+// The parents have taller silhouettes and their own hairstyle, clothes and expressions.
+function drawParent(ctx, hero) {
+  const mom = hero === 'mom';
+  const edge = mom ? '#393448' : '#423d36';
+  const jacket = mom ? '#8868b3' : '#cb943d';
+  const light = mom ? '#b494d6' : '#efb654';
+  const shade = mom ? '#5c508a' : '#9d6e38';
+  const hair = mom ? '#75453b' : '#624537';
+  const darkHair = mom ? '#493342' : '#433b38';
+  const skin = '#e4ac80', skinLight = '#f2c599', skinShadow = '#be8768';
+  const r = (c, x, y, w, h) => box(ctx, c, x, y, w, h);
+  const poly = (color, vertices) => shape(ctx, color, vertices);
+  poly(edge, [[13,72],[14,58],[23,49],[36,44],[59,43],[74,48],[84,56],[87,72]]);
+  poly(shade, [[16,72],[17,57],[29,48],[60,46],[74,51],[82,58],[84,72]]);
+  poly(jacket, [[27,72],[27,55],[40,46],[56,46],[67,53],[68,72]]);
+  poly(light, [[16,58],[25,50],[33,47],[36,50],[27,55],[19,62]]);
+  poly(light, [[62,49],[67,48],[76,52],[73,54],[67,55]]);
+  poly(jacket, [[74,55],[79,55],[83,60],[84,69],[72,68]]);
+  r(shade, 24, 58, 2, 13);
+  r(light, 76, 60, 4, 2);
+  r(skinShadow, 38, 40, 18, 10);
+  r(skin, 38, 46, 13, 4);
+  if (mom) {
+    poly('#d9caeb', [[33,48],[39,45],[44,51],[51,48],[59,45],[60,50],[46,57],[36,54]]);
+    poly('#c3a9d9', [[44,55],[49,53],[56,61],[51,65]]);
+    r('#dac5e8', 50, 60, 3, 2);
+    // A braided bun and a lock of hair continue behind the far shoulder.
+    poly(darkHair, [[57,17],[61,7],[67,3],[75,4],[81,10],[81,19],[75,25],[72,38],[64,50],[58,50]]);
+    poly(hair, [[60,13],[64,7],[71,6],[77,9],[78,15],[72,20],[67,20]]);
+    r('#a46951', 66, 8, 6, 2);
+    poly('#d399b7', [[61,14],[66,15],[73,22],[70,24],[62,17]]);
+  } else {
+    poly('#b25142', [[33,47],[38,44],[46,49],[58,44],[64,48],[53,52],[44,57],[35,53]]);
+    poly('#d66750', [[43,53],[53,51],[49,60],[45,64]]);
+    r('#fa9471', 45, 54, 3, 2);
+    r(shade, 56, 60, 10, 7);
+    r(light, 56, 60, 10, 2);
+    r('#ffda8c', 61, 62, 2, 1);
+  }
+  poly(edge, [[27,13],[43,5],[56,5],[69,12],[69,34],[61,43],[51,48],[29,44],[26,38]]);
+  poly(skinShadow, [[51,19],[67,13],[67,34],[59,42],[51,46],[49,39]]);
+  poly(skin, [[28,17],[52,19],[52,43],[49,46],[30,42],[28,38]]);
+  poly(skinLight, [[29,23],[49,24],[49,36],[37,36],[36,39],[30,39]]);
+  poly(hair, [[27,13],[43,6],[55,6],[68,12],[53,22],[28,19]]);
+  poly(darkHair, [[52,20],[67,13],[67,26],[61,30],[58,26],[54,29],[52,28]]);
+  poly(skin, [[58,29],[64,26],[64,33],[59,36]]);
+  r(skinShadow, 60, 29, 2, 3);
+  if (mom) {
+    poly(hair, [[28,15],[41,10],[54,13],[54,18],[48,22],[38,22],[37,25],[30,25],[26,31],[25,26]]);
+    poly('#a96b50', [[29,17],[39,11],[48,9],[53,10],[43,13],[37,17]]);
+    poly(darkHair, [[52,20],[56,19],[56,30],[60,33],[63,29],[63,35],[59,39],[54,36]]);
+    r('#f5cd74', 61, 34, 2, 3);
+    r(darkHair, 29, 26, 7, 1);
+    r(darkHair, 43, 26, 6, 1);
+    r('#fff1df', 29, 29, 7, 4);
+    r('#fff1df', 43, 29, 7, 4);
+    r('#3d4244', 30, 29, 4, 3);
+    r('#3d4244', 44, 29, 4, 3);
+    r('#fff1df', 30, 29, 1, 1);
+    r('#fff1df', 44, 29, 1, 1);
+    r(skinShadow, 36, 33, 4, 2);
+    r('#c17b69', 30, 35, 4, 1);
+    r('#c17b69', 46, 35, 4, 1);
+    r('#a05b58', 35, 39, 9, 2);
+    r('#ffe8d5', 36, 39, 6, 1);
+  } else {
+    poly(hair, [[26,14],[27,10],[32,10],[33,6],[38,7],[46,4],[54,5],[64,10],[53,16],[45,16],[41,19],[35,19]]);
+    poly('#90735b', [[29,12],[37,7],[42,8],[35,12]]);
+    r('#978776', 61, 21, 5, 2);
+    // Thick square frames, an open smile and a short salt-and-pepper beard.
+    r(darkHair, 27, 25, 11, 7);
+    r(darkHair, 41, 25, 12, 7);
+    r(darkHair, 36, 26, 8, 2);
+    poly(darkHair, [[52,25],[64,22],[64,24],[52,27]]);
+    r('#f2d1a8', 29, 26, 7, 4);
+    r('#f2d1a8', 43, 26, 8, 4);
+    r(edge, 31, 27, 3, 3);
+    r(edge, 45, 27, 3, 3);
+    r('#fff0d4', 31, 27, 1, 1);
+    r('#fff0d4', 45, 27, 1, 1);
+    r(skinShadow, 37, 31, 4, 3);
+    poly(hair, [[29,34],[32,36],[34,38],[41,37],[48,37],[52,33],[57,31],[57,36],[52,44],[48,46],[32,43],[29,39]]);
+    r('#92745f', 31, 38, 2, 2);
+    r('#92745f', 48, 41, 3, 2);
+    r('#513b38', 35, 38, 10, 4);
+    r('#fff1d4', 35, 38, 9, 2);
+    r('#ba796a', 38, 41, 5, 1);
+  }
+}
+
 export function drawPortrait(canvas, hero) {
   const ctx = surface(canvas,96,72);
   const blue = hero === 'kirill';
-  portraitBackdrop(ctx,blue);
+  portraitBackdrop(ctx,hero);
+  if (hero === 'mom' || hero === 'dad') {
+    drawParent(ctx,hero);
+    return;
+  }
   const p = blue ? {
     outline:'#1e3843',side:'#25426a',body:'#306eaa',light:'#559cd0',edge:'#81bad7',shirt:'#a0bdc3',
     hair:'#63402a',hairLight:'#8b5b39',hairDark:'#493124',skin:'#e0ad7d',glow:'#f3c593',shade:'#bb8058'
@@ -292,6 +397,30 @@ const spritePixels = {
     ' qb qpwrrwrpq bq','qq  qbrrprrpq qq','   qppbbppbppq  ','  qpbqpbbbpqbpq ',
     ' qpqq qbqbq qqpq',' qpq   q q   qpq',' qq           qq','                '
   ],
+  skeleton: [
+    '     qqqqqq     ','    qiiiBBBiq   ','    qiIIIiIBq   ','    qiooiooBq   ',
+    '    qBIIoIiBq   ','     qioiiBq    ','      qqBqq     ','    qIIBiBIqq   ',
+    '   qi qBBiq iBq ','   qB qiiiq qiq ','   qB qBBiq qiq ','   qq qBBiq  qq ',
+    '      qqqqq     ','     qIBqIBq    ','     qiBqiBq    ','     qqqqqqq    '
+  ],
+  slime: [
+    '                ','                ','                ','      qqqqq     ',
+    '   qqGLLLGGuqq  ','  qGGGLLLLGGuuq ',' qLLLLGGGGGGuuq ',' qLLGGuuGGGGuuq ',
+    ' qLGGxxGGxxGGUq ',' qLGGxxGGxxGGUq ',' qLGGGGxGGGGGUq ',' qGGGGGGGGGuGUq ',
+    ' qGuuGGuuuuuuuUq','  qUUuuuuuuUUUq ','   qqqqqqqqqqq  ','                '
+  ],
+  mom: [
+    '     qqqqqq qq  ','    qhllhhqhlhq ','   qhllhhhhdhhq ','   qhhhffhhhdq  ',
+    '   qhfffffhddq  ','   qffowfofhkq  ','   qhffffffklq  ','    qfkffkfhdq  ',
+    '   qqqfffqqqq   ','  qjjjttttjjjq  ','  qjjjjtjsjsjq  ','  qffqjjtsqffq  ',
+    '   qqqjjjsqqq   ','     qnnnnq     ','    qnnqqnnq    ','    qqqqqqqq    '
+  ],
+  dad: [
+    '     qqqqqq     ','    qlhhhhhdq   ','   qlhhhhhdhq   ','   qhlhhhhhhdq  ',
+    '   qfffkfffldq  ','   qoowoooowoq  ','   qoffoffofkq  ','   qkhdffdhkq   ',
+    '   qqhhwwhdqq   ','  qjjjttttjjjq  ','  qjjjttjsjjtq  ','  qffqjtjsqffq  ',
+    '   qqqjjjsqqq   ','     qnnnnq     ','    qnnqqnnq    ','    qqqqqqqq    '
+  ],
   hero: [
     '     qqqqqq     ','    qhhhhhhq    ','   qhhllhhhdq   ','   qhhlhhhhhq   ',
     '   qfhhffhhfq   ','   qffowfoffq   ','   qfffffffkq   ','    qfkffkfqq   ',
@@ -302,16 +431,22 @@ const spritePixels = {
 
 const monsterColors = {
   q:'#13292b', h:'#a7d471', g:'#73ae55', d:'#477649', o:'#243c36', t:'#66b9b1',
+  i:'#c7d2cf', I:'#f2f0df', B:'#95a5a9', G:'#6bcd82', L:'#bcf6a2',
+  u:'#4daa73', U:'#3e8867', x:'#376d56',
   v:'#358982', l:'#5e6490', p:'#63505d', b:'#352f42', a:'#846975', r:'#e77745', w:'#ffaf65'
 };
 
-function heroColors(hero) {
-  return {
-    q:'#232d36', h:hero==='kirill'?'#6d482f':'#875135', l:'#b77c46', d:'#4e3a30', f:'#eeb789',
-    o:'#293940', w:'#fdf1d4', k:'#bc835d', j:hero==='kirill'?'#4b91cd':'#e89345',
-    t:hero==='kirill'?'#a5cde4':'#ffd78c', s:hero==='kirill'?'#336291':'#b66039', n:'#465467'
-  };
-}
+const baseHeroColors = {
+  q:'#232d36', h:'#875135', l:'#b77c46', d:'#4e3a30', f:'#eeb789', o:'#293940',
+  w:'#fdf1d4', k:'#bc835d', n:'#465467'
+};
+
+const heroColors = {
+  kirill: { ...baseHeroColors, h:'#6d482f', j:'#4b91cd', t:'#a5cde4', s:'#336291' },
+  maxim: { ...baseHeroColors, j:'#e89345', t:'#ffd78c', s:'#b66039' },
+  mom: { ...baseHeroColors, h:'#75453b', l:'#a46951', j:'#aa81ca', t:'#e6c5ef', s:'#765b9d' },
+  dad: { ...baseHeroColors, h:'#624537', l:'#92745f', j:'#e3b24c', t:'#ed7761', s:'#a46f36' }
+};
 
 function sprite(ctx, name, colors, x, y, facingLeft=false) {
   ctx.save();
@@ -409,7 +544,9 @@ function background(canvas,state) {
   for (let row=0;row<state.height;row++) {
     for (let col=0;col<state.width;col++) {
       const variation = Math.floor(rand()*1031);
-      if (state.map[row][col] === '#') {
+      if (state.levelId === 'arcade') {
+        arcadeTile(ctx,state.map,col,row,TILE,variation);
+      } else if (state.map[row][col] === '#') {
         wallTile(ctx,state,col,row,variation);
       } else {
         floorTile(ctx,col*TILE,row*TILE,variation);
@@ -417,6 +554,7 @@ function background(canvas,state) {
       }
     }
   }
+  for (const attraction of state.decorations || []) drawAttraction(ctx,attraction,TILE);
   backgrounds.set(canvas,{canvas:layer,map:state.map});
   return layer;
 }
@@ -436,9 +574,28 @@ function actorPos(actor) {
   return [Math.round((actor.x+0.5)*TILE), Math.round((actor.y+0.5)*TILE)];
 }
 
+const booLetters = [
+  '111 101 1', '100 101 1', '110 011 1', '101 001 0', '111 110 1'
+];
+
+function drawBoo(ctx, x, y) {
+  // The balloon stays clear of the player and within the board at its edges.
+  const left = Math.min(x + 2, ctx.canvas.width - 28);
+  const top = y < 27 ? y + 9 : y - 25;
+  box(ctx,'#382c3a', left, top, 25, 16);
+  box(ctx,'#ffe9b2', left + 1, top + 1, 23, 13);
+  box(ctx,'#ffe9b2', left + 3, y < 27 ? top - 2 : top + 14, 3, 3);
+  booLetters.forEach((row, dy) => {
+    for (let dx = 0; dx < row.length; dx++) {
+      if (row[dx] === '1') box(ctx,'#55374a',left + 3 + dx * 2,top + 2 + dy * 2,2,2);
+    }
+  });
+}
+
 export function drawBoard(canvas,state) {
   const ctx = surface(canvas,state.width*TILE,state.height*TILE);
   ctx.drawImage(background(canvas,state),0,0);
+  for (const ride of state.decorations || []) drawRideLights(ctx,ride,TILE,state.time);
   for (const index of state.gems) {
     emerald(ctx,(index%state.width+0.5)*TILE,(Math.floor(index/state.width)+0.5)*TILE);
   }
@@ -446,6 +603,11 @@ export function drawBoard(canvas,state) {
     const [x,y]=actorPos(monster);
     box(ctx,'#172927',x-6,y+6,13,3);
     sprite(ctx,monster.type,monsterColors,x-8,y-8,monster.dir==='left');
+    if (state.fear > 0) {
+      box(ctx,'#8de5f5',x+6,y-10,2,3);
+      box(ctx,'#d3f8ff',x+6,y-10,1,1);
+      box(ctx,'#8de5f5',x+9,y-8,1,2);
+    }
     if (monster.stun > 0) {
       box(ctx,'#ffed9a',x-5,y-9,3,1);
       box(ctx,'#ffed9a',x-4,y-10,1,3);
@@ -464,8 +626,17 @@ export function drawBoard(canvas,state) {
   }
   ctx.save();
   if (state.invulnerable>0 && Math.floor(state.time*8)%2) ctx.globalAlpha=0.55;
-  sprite(ctx,'hero',heroColors(state.hero),x-8,y-8,state.player.dir==='left');
+  if (state.invisible > 0) ctx.globalAlpha = 0.42;
+  const model = state.hero === 'mom' || state.hero === 'dad' ? state.hero : 'hero';
+  sprite(ctx,model,heroColors[state.hero],x-8,y-8,state.player.dir==='left');
   ctx.restore();
+  if (state.invisible > 0) {
+    const drift = Math.floor(state.time * 5) % 3;
+    for (const [dx,dy] of [[-9,-5],[8,1],[-5,9],[5,-9]]) {
+      box(ctx,'#d4b7fc',x+dx,y+dy-drift,2,1);
+    }
+  }
+  if (state.fear > 0) drawBoo(ctx,x,y);
   if (state.attack>0) {
     const points = [[-9,-6],[-10,0],[-8,6],[-3,9],[4,9],[9,5],[10,-1],[8,-6]];
     for (const [dx,dy] of points) box(ctx,'#ffe095',x+dx,y+dy,3,2);

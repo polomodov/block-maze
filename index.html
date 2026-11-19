@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#101719" />
     <meta
       name="description"
-      content="Выбери Кирилла или Максима и забери изумруды из затерянного храма. Семейная пиксельная аркада для компьютера и телефона."
+      content="Выбери героя и отправляйся за изумрудами в храм или игровой центр. Семейная пиксельная аркада для компьютера и телефона."
     />
     <title>Храм изумруда · Блок Аркада</title>
     <link rel="icon" href="./assets/mark.svg" type="image/svg+xml" />
@@ -53,12 +53,25 @@
       </div>
     </header>
     <main>
-      <section id="lobby" aria-label="Выбор героя">
+      <section id="lobby" aria-label="Выбор уровня и героя">
         <div class="banner">
           <canvas id="landscape" aria-hidden="true"></canvas>
           <div class="banner-copy">
-            <h1>ХРАМ<br /><span>ИЗУМРУДА</span></h1>
-            <p>Собери изумруды и ускользни от монстров.</p>
+            <h1><span id="title-first">ХРАМ</span><br /><span id="title-second">ИЗУМРУДА</span></h1>
+            <p id="level-description">Собери изумруды и ускользни от монстров.</p>
+          </div>
+        </div>
+        <div class="levels" role="radiogroup" aria-labelledby="level-heading">
+          <strong id="level-heading">Уровень</strong>
+          <div class="level-options">
+            <label class="level-option">
+              <input class="sr-only" type="radio" name="level" value="temple" checked />
+              <span class="level-number" aria-hidden="true">01</span>Храм изумруда
+            </label>
+            <label class="level-option">
+              <input class="sr-only" type="radio" name="level" value="arcade" />
+              <span class="level-number" aria-hidden="true">02</span>Игровой центр
+            </label>
           </div>
         </div>
         <div class="setup">
@@ -96,6 +109,28 @@
                   ></span
                 >
               </label>
+              <label class="hero mom">
+                <input type="radio" name="hero" value="mom" />
+                <span class="portrait-frame">
+                  <canvas data-hero="mom" aria-hidden="true"></canvas>
+                  <span class="selector" aria-hidden="true"></span>
+                </span>
+                <span class="hero-copy">
+                  <strong>Мама</strong>
+                  <span><i class="ghost" aria-hidden="true"></i>Невидимость</span>
+                </span>
+              </label>
+              <label class="hero dad">
+                <input type="radio" name="hero" value="dad" />
+                <span class="portrait-frame">
+                  <canvas data-hero="dad" aria-hidden="true"></canvas>
+                  <span class="selector" aria-hidden="true"></span>
+                </span>
+                <span class="hero-copy">
+                  <strong>Папа</strong>
+                  <span><i class="shout" aria-hidden="true"></i>Крик «Бу!»</span>
+                </span>
+              </label>
             </div>
             <button id="play" class="primary">
               <span class="play-icon" aria-hidden="true"></span>Начать игру
@@ -110,16 +145,12 @@
                 </div>
                 <div>
                   <h3>Изумруды</h3>
-                  <p>Собери все, чтобы пройти храм.</p>
+                  <p>Собери все, чтобы пройти уровень.</p>
                 </div>
               </div>
               <div class="monsters">
                 <h3>За тобой охотятся</h3>
-                <ul>
-                  <li><canvas data-monster="creeper"></canvas>Крипер</li>
-                  <li><canvas data-monster="zombie"></canvas>Зомби</li>
-                  <li><canvas data-monster="spider"></canvas>Паук</li>
-                </ul>
+                <ul id="monster-list"></ul>
               </div>
               <div class="life-note">
                 <i class="heart" aria-hidden="true"></i>У героя три жизни
@@ -131,7 +162,7 @@
       <section id="arena" hidden aria-label="Игра в лабиринте">
         <div class="arena-header">
           <button id="menu" class="minor">Выбор героя</button>
-          <h2>Храм изумруда</h2>
+          <h2 id="arena-title">Храм изумруда</h2>
           <button id="pause" class="minor">Пауза</button>
         </div>
         <div class="hud" aria-live="off">
@@ -176,8 +207,8 @@
       <form method="dialog">
         <h2 id="help-heading">Как играть</h2>
         <p>
-          Собери все изумруды в храме. Встреча с монстром отнимает одну из трёх
-          жизней.
+          Собери все изумруды на уровне. Встреча с монстром отнимает одну из трёх жизней.
+          После храма тебя ждёт игровой центр. В него можно попасть сразу с экрана выбора уровня.
         </p>
         <h3>Движение</h3>
         <p>
@@ -187,10 +218,15 @@
         </p>
         <h3>Способности</h3>
         <p>
-          Кирилл ускоряется на 4 секунды. Максим оглушает монстров рядом на 4
-          секунды. Нажми пробел или кнопку способности. Через 30 секунд игры
+          Нажми пробел или кнопку способности под полем. Через 30 секунд игры
           способность снова готова.
         </p>
+        <ul class="help-abilities">
+          <li><b>Кирилл</b> ускоряется на 4 секунды.</li>
+          <li><b>Максим</b> ударом оглушает монстров рядом на 4 секунды.</li>
+          <li><b>Мама</b> на 4 секунды становится невидимой. Монстры теряют её из виду, и она может пройти сквозь них.</li>
+          <li><b>Папа</b> кричит «Бу!». На 3 секунды монстры разбегаются и дают ему пройти.</li>
+        </ul>
         <button class="primary" autofocus>Понятно</button>
       </form>
     </dialog>

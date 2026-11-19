@@ -1,22 +1,37 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createGame } from '../engine.js';
+import { LEVELS } from '../levels.js';
 
-test('all emeralds are reachable from the starting tile', () => {
-  const { state } = createGame();
-  const visited = new Set();
-  const queue = [[state.player.x, state.player.y]];
-  for (let i = 0; i < queue.length; i++) {
-    const [x, y] = queue[i];
-    const key = y * state.width + x;
-    if (visited.has(key)) continue;
-    visited.add(key);
-    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
-      if (state.map[ny]?.[nx] === '.') queue.push([nx, ny]);
+for (const [id, level] of Object.entries(LEVELS)) {
+  test(id + ' connects every walkway, emerald and monster patrol', () => {
+    const { state } = createGame('kirill', id);
+    const visited = new Set();
+    const queue = [level.start];
+    for (let i = 0; i < queue.length; i++) {
+      const [x, y] = queue[i];
+      const key = y * state.width + x;
+      if (visited.has(key)) continue;
+      visited.add(key);
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+        if (state.map[ny]?.[nx] === '.') queue.push([nx, ny]);
+      }
     }
-  }
-  for (const gem of state.gems) assert.ok(visited.has(gem));
-});
+    const floorCount = state.map.join('').split('.').length - 1;
+    assert.equal(visited.size, floorCount);
+    for (const gem of state.gems) assert.ok(visited.has(gem));
+    for (const { start, patrol } of level.monsters) {
+      for (const [x, y] of [start, patrol]) assert.ok(visited.has(y * state.width + x));
+    }
+    for (const bounds of level.decorations) {
+      for (let y = bounds.y; y < bounds.y + bounds.height; y++) {
+        for (let x = bounds.x; x < bounds.x + bounds.width; x++) {
+          assert.equal(state.map[y][x], '#');
+        }
+      }
+    }
+  });
+}
 
 test('movement can reverse between tiles and queue a turn before a junction', () => {
   const game = createGame();
@@ -111,4 +126,94 @@ test('collecting the final emerald wins and freezes the game', () => {
   assert.equal(state.collected, state.totalGems);
   assert.equal(state.gems.size, 0);
   assert.equal(game.activate(), false);
+});
+
+test('invisible Mom can collect gems while the creeper heads to patrol', () => {
+  // In this corridor the patrol lies to the left and the visible player to the right.
+  for (const invisible of [false, true]) {
+    const game = createGame('mom');
+    game.start();
+    Object.assign(game.state.player, { x: 13, y: 11 });
+    const creeper = game.state.monsters[0];
+    Object.assign(creeper, { x: 11, y: 11 });
+    if (invisible) game.activate();
+    game.turn('right');
+    game.update(0.1);
+    assert.equal(creeper.dir, invisible ? 'left' : 'right');
+    game.update(0.55);
+    assert.ok(game.state.collected > 0);
+  }
+});
+
+test('Dad sends a chasing monster back immediately and an escaping monster keeps going', () => {
+  const game = createGame('dad');
+  game.start();
+  const [chasing, escaping] = game.state.monsters;
+  Object.assign(chasing, { x: 12.5, y: 11, dir: 'left', target: [12, 11] });
+  Object.assign(escaping, { x: 9.5, y: 11, dir: 'left', target: [9, 11] });
+  assert.ok(game.activate());
+  assert.equal(chasing.dir, 'right');
+  assert.equal(escaping.dir, 'left');
+  game.update(0.75);
+  assert.ok(chasing.x > 13);
+  assert.ok(escaping.x < 9);
+});
+
+for (const [hero, effect, duration] of [['mom', 'invisible', 4], ['dad', 'fear', 3]]) {
+  test(hero + ' is safe for the exact effect duration and pauses freeze the clock', () => {
+    const game = createGame(hero);
+    const { state } = game;
+    game.start();
+    game.activate();
+    assert.equal(state[effect], duration);
+    game.pause();
+    game.update(10);
+    assert.equal(state[effect], duration);
+    assert.equal(state.cooldown, 30);
+    game.resume();
+    game.turn('right');
+    game.update(duration - 0.02);
+    const monster = state.monsters[0];
+    Object.assign(monster, { x: state.player.x, y: state.player.y, dir: null, target: null });
+    game.update(0.01);
+    assert.equal(state.lives, 3);
+    game.update(0.01);
+    assert.equal(state[effect], 0);
+    assert.equal(state.lives, 2);
+    assert.equal(game.activate(), false);
+    game.update(30 - duration);
+    assert.ok(game.activate());
+  });
+}
+
+test('finishing the temple advances once with remaining lives and ability cooldown', () => {
+  const game = createGame('mom');
+  const { state } = game;
+  assert.equal(game.nextLevel(), false);
+  game.start();
+  state.lives = 2;
+  game.activate();
+  function collectLast() {
+    state.gems.clear();
+    state.gems.add(state.player.y * state.width + state.player.x + 1);
+    state.collected = state.totalGems - 1;
+    game.turn('right');
+    game.update(1);
+    assert.equal(state.status, 'won');
+  }
+  collectLast();
+  const cooldown = state.cooldown;
+  assert.ok(game.nextLevel());
+  assert.equal(state.levelId, 'arcade');
+  assert.equal(state.status, 'playing');
+  assert.equal(state.hero, 'mom');
+  assert.equal(state.lives, 2);
+  assert.equal(state.cooldown, cooldown);
+  assert.equal(state.invisible, 0);
+  assert.equal(state.collected, 0);
+  assert.equal(state.gems.size, state.totalGems);
+  assert.deepEqual(state.monsters.map(m => m.type), ['slime', 'skeleton', 'creeper', 'spider']);
+  collectLast();
+  assert.equal(game.nextLevel(), false);
+  assert.equal(state.status, 'won');
 });
