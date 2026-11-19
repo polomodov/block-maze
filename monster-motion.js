@@ -1,4 +1,4 @@
-import { PREPARATION, BLAST_DURATION, BLAST_LIFETIME } from './monster-rules.js?v=monster-motion-1';
+import { PREPARATION, BLAST_DURATION, BLAST_LIFETIME } from './monster-rules.js?v=living-worlds-1';
 // These drawings share the maze's logical coordinates, one corridor cell = 20 units.
 const tau = Math.PI * 2;
 const clamp = value => Math.max(0, Math.min(1, value));

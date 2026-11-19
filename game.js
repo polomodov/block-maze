@@ -1,7 +1,7 @@
 import { playGuitar, stopGuitar, performanceAge } from './guitar.js?v=encore-1';
-import { createGame } from './engine.js?v=monster-motion-1';
+import { createGame } from './engine.js?v=living-worlds-1';
 import { LEVELS } from './levels.js?v=end-family-1';
-import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=monster-motion-2';
+import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=living-worlds-1';
 
 const byId = (id) => document.getElementById(id);
 const lobby = byId('lobby');
@@ -37,8 +37,8 @@ const monsters = {
   elder_guardian: { name: 'Древний страж', hint: 'Готовит волну, которая замедляет героя рядом. Отбеги, пока волна заряжается.' },
   witch: { name: 'Ведьма', hint: 'Оставляет лужи зелья. Обходи их, чтобы сохранить скорость.' },
   enderman: { name: 'Эндермен', hint: 'Открывает фиолетовый портал в другом проходе. Там он появится через мгновение.' },
-  ghast: { name: 'Гаст', hint: 'Целится и пускает огненный шар через лаву. Успей свернуть за угол.' },
-  magma_cube: { name: 'Магмовый куб', hint: 'Перепрыгивает через лаву. Уходи с отмеченной клетки на другом берегу.' },
+  ghast: { name: 'Гаст', hint: 'Набирает огненный шар у рта и пускает его через лаву. Сверни за угол, пока шар растёт.' },
+  magma_cube: { name: 'Магмовый куб', hint: 'Сжимается перед прыжком через лаву. Уходи с отмеченной клетки на другом берегу.' },
   blaze: { name: 'Ифрит', hint: 'Пускает две искры подряд по одной дорожке. Спрячься за углом и пропусти обе.' },
   wither_skeleton: { name: 'Скелет-иссушитель', hint: 'Бьёт мечом по двум клеткам перед собой. Удар замедляет тебя. Шагни в сторону, пока меч поднят.' },
   ghost: { name: 'Призрак', hint: 'Замирает, когда ты смотришь прямо на него в коридоре. Отвернёшься — и он снова двинется.' },

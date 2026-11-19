@@ -112,6 +112,7 @@ test('the witch’s puddle slows the player without taking a life, then expires'
   const { game, state, monster } = encounter('store', 'witch');
   const pool = () => state.effects.find(effect => effect.type === 'slow_pool');
   until(game, () => pool(), 3, 'no puddle');
+  assert.equal(monster.cast.at, state.time);
   const { x, y } = pool();
   place(monster, 1, 1);
   monster.skillCooldown = 100;

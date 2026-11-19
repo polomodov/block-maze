@@ -13,8 +13,10 @@ export function resetSkill(monster) {
   monster.charging = false;
   monster.watched = false;
   monster.leap = null;
+  monster.landing = null;
   monster.shot = null;
   monster.teleport = null;
+  monster.cast = null;
   clearWarning(monster);
 }
 
@@ -87,13 +89,16 @@ function forwardCells(x, y, dir, range, floor) {
 }
 
 // A committed jump lands on the bank even if the player vanishes in mid-flight.
-function advanceLeap(monster, seconds) {
+function advanceLeap(monster, seconds, time) {
   const leap = monster.leap;
   leap.progress = Math.min(1, leap.progress + seconds / LEAP_SECONDS);
   const [x, y] = leap.from, [tx, ty] = leap.to;
   monster.x = x + (tx - x) * leap.progress;
   monster.y = y + (ty - y) * leap.progress;
-  if (leap.progress >= 1) monster.leap = null;
+  if (leap.progress >= 1) {
+    monster.leap = null;
+    monster.landing = { x: tx, y: ty, at: time };
+  }
 }
 
 function safeLanding(state, monster, x, y, distance) {
@@ -148,6 +153,7 @@ function resolveWarning(state, monster, index, spawn, distance) {
       state.effects.push({ type: 'wither_slash', x, y, cells, owner: index, remaining: 0.35 });
       break;
     case 'ghast':
+      monster.shot = { dir: aim.dir, at: state.time };
       state.effects.push({ type: 'fireball', x, y, dir: aim.dir, owner: index, remaining: FIREBALL_RANGE / FIREBALL_SPEED });
       break;
     case 'magma_cube':
@@ -169,6 +175,9 @@ function resolveWarning(state, monster, index, spawn, distance) {
       }
       break;
   }
+  if (type === 'shulker' || type === 'blaze' || type === 'wither_skeleton' || type === 'pumpkin_guard' || type === 'elder_guardian') {
+    monster.cast = { at: state.time, dir: aim.dir };
+  }
   monster.skillCooldown = RECOVERY[type];
   clearWarning(monster);
 }
@@ -182,6 +191,7 @@ function startWarning(state, monster, index, floor, distance) {
   switch (type) {
     case 'witch':
       if (range <= 7) {
+        monster.cast = { at: state.time };
         state.effects.push({ type: 'slow_pool', x, y, owner: index, remaining: 4 });
         monster.skillCooldown = 6;
       }
@@ -243,7 +253,7 @@ export function monsterSpeed(state, index, definition, seconds, floor, distance)
   const distracted = state.fear > 0 || state.invisible > 0 || monster.stun > 0;
   monster.skillCooldown = Math.max(0, monster.skillCooldown - seconds);
   if (monster.leap) {
-    advanceLeap(monster, seconds);
+    advanceLeap(monster, seconds, state.time);
     return 0;
   }
   if (distracted && monster.windup > 0) {

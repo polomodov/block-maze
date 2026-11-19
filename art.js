@@ -1,5 +1,6 @@
+import { drawGhastShots } from './nether-motion.js?v=living-worlds-1';
 import { drawPowerBehind, drawPowerFront, drawMonsterReaction, invisibleOpacity } from './maze-abilities.js?v=encore-1';
-import { drawMazeMonster } from './maze-monsters.js?v=monster-motion-2';
+import { drawMazeMonster } from './maze-monsters.js?v=living-worlds-1';
 import { performanceAge } from './guitar.js?v=encore-1';
 import { drawChordWave, drawGuitarist, danceFloor, dancerNotes } from './maze-music.js?v=encore-1';
 import { configureBoard } from './display.js';
@@ -7,11 +8,11 @@ import { tileFinish, lightScene, drawGem, landmarkBounds, animateLandmark, board
 import { drawTempleFixture, templeFlames } from './temple-art.js?v=end-family-1';
 import { arcadeTile, drawArcadeLandscape, drawAttraction, drawRideLights } from './arcade-art.js?v=end-family-1';
 import { drawStoreLandscape, storeTile, drawStoreFixture, storeMonsterPixels, storeMonsterColors } from './store-art.js?v=end-family-1';
-import { drawMonsterEffects, showCharge, showSlow } from './monster-art.js?v=monster-motion-1';
+import { drawMonsterEffects, showCharge, showSlow } from './monster-art.js?v=living-worlds-1';
 import { drawWaterparkLandscape, drawWaterRide, waterparkTile, waterRipples, drawRideAccess, riderPosition } from './waterpark-art.js?v=end-family-1';
 import { drawNetherLandscape, netherTile, drawNetherFixture, drawNetherBridges, drawNetherThreats, netherMonsterPixels, netherMonsterColors } from './nether-art.js?v=end-family-1';
 import { drawCastleLandscape, castleTile, drawCastleFixture, castleLights, castleMonsterPixels, castleMonsterColors } from './castle-art.js?v=end-family-1';
-import { drawEndLandscape, endTile, drawEndFixture, drawEndThreats, drawFlyingDragon, endMonsterPixels, endMonsterColors, endermanColors } from './end-art.js?v=end-family-1';
+import { drawEndLandscape, endTile, drawEndFixture, drawEndThreats, drawFlyingDragon, endMonsterPixels, endMonsterColors, endermanColors } from './end-art.js?v=living-worlds-1';
 
 // The artwork is drawn on integer grids and scaled by the browser as pixel art.
 function surface(canvas, width, height) {
@@ -426,23 +427,6 @@ function sprite(ctx, name, colors, x, y, facingLeft = false, stride = 0, back = 
   ctx.restore();
 }
 
-function shulkerShell(ctx, monster, x, y, songAge) {
-  const image = spriteImage('shulker', endMonsterColors, false);
-  ctx.drawImage(image, 0, 7, 16, 9, x, y+7, 16, 9);
-  // Raising the lid exposes the eyes and gives the player a cue before the shot.
-  const dancing=monster.dance>0;
-  const tilt=dancing?Math.cos(songAge*Math.PI*2):0;
-  const lid=dancing ? -.5-1.5*Math.abs(tilt) : monster.windup>0 ? -1 : 3;
-  ctx.save();
-  ctx.translate(x+8, y+lid+3.5);ctx.rotate(tilt*.15);
-  ctx.drawImage(image, 0, 0, 16, 7, -8, -3.5, 16, 7);
-  ctx.restore();
-  if (lid < 0) {
-    box(ctx,'#fff4bc',x+5,y+8,1,1);
-    box(ctx,'#fff4bc',x+10,y+8,1,1);
-  }
-}
-
 function walkFrame(actor) {
   if (!actor.target) return 0;
   const travel = actor.x + actor.y;
@@ -651,12 +635,12 @@ export function drawBoard(canvas,state) {
   if (state.dragon) drawFlyingDragon(ctx,state,TILE);
   for (const monster of state.monsters) {
     const [x,y]=actorPos(monster);
-    contactShadow(ctx, x, y);
+    contactShadow(ctx, x, y, monster.leap ? 12-4*Math.sin(Math.PI*monster.leap.progress) : 12);
     const jumpPhase = state.time % .9;
     let hop = monster.type === 'slime' && !monster.stun && jumpPhase < .55
-      ? Math.round(3 * Math.sin(Math.PI * jumpPhase / .55)) : 0;
-    if (monster.leap) hop = Math.round(13 * Math.sin(Math.PI * monster.leap.progress));
-    if (monster.type === 'ghast' || (monster.type === 'blaze' && !monster.stun)) {
+      ? 4.2 * Math.sin(Math.PI * jumpPhase / .55) : 0;
+    if (monster.leap) hop = 18 * Math.sin(Math.PI * monster.leap.progress);
+    if (monster.type === 'blaze' && !monster.stun) {
       hop = 2 + Math.round(Math.sin(state.time * 3.5));
     }
     const dancing=monster.dance>0;
@@ -674,16 +658,13 @@ export function drawBoard(canvas,state) {
       ctx.translate(-x,-y-6.9);
     }
     if (monster.watched) ctx.globalAlpha = .62;
-    if (monster.type === 'shulker') {
-      shulkerShell(ctx, monster, x-8, y-8, songAge);
-    } else {
-      drawMazeMonster(ctx,monster,x,y-hop,state.time,false,songAge);
-    }
+    drawMazeMonster(ctx,monster,x,y-hop,state.time,false,songAge);
     ctx.restore();
     if (dancing) dancerNotes(ctx,x,y,songAge);
     showCharge(ctx,monster,x,y-hop);
     drawMonsterReaction(ctx,monster,state.fear,x,y-hop,state.time);
   }
+  if (state.levelId === 'nether') drawGhastShots(ctx,state,TILE);
   const [x,y] = state.rideRemaining > 0 ? riderPosition(state,TILE) : actorPos(state.player);
   contactShadow(ctx, x, y, state.levitation > 0 ? 9 : 13);
   drawPowerBehind(ctx,state,x,y);

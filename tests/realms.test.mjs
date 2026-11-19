@@ -54,10 +54,13 @@ test('a ghast warns before a fireball crosses open lava and hits the hero', () =
   game.update(0.02);
   assert.ok(monster.windup > 0);
   assert.equal(monster.aim.dir, 'right');
+  assert.equal(monster.shot, null);
   assert.equal(state.effects.length, 0);
   game.update(1.32);
   const shot = state.effects.find(effect => effect.type === 'fireball');
   assert.ok(shot);
+  assert.equal(monster.shot.dir, shot.dir);
+  assert.ok(state.time - monster.shot.at < .35);
   assert.equal(state.map[Math.round(shot.y)][Math.round(shot.x)], '~');
   game.pause();
   const x = shot.x;
@@ -113,6 +116,8 @@ test('a magma cube marks its landing, jumps across the lava and can be dodged', 
   game.resume();
   game.update(0.34);
   assert.equal(monster.leap, null);
+  assert.deepEqual([monster.landing.x, monster.landing.y], [12, 6]);
+  assert.ok(state.time - monster.landing.at < .05);
   assert.equal(Math.round(monster.x), 12);
   assert.equal(Math.round(monster.y), 6);
   assert.equal(state.lives, 3);
@@ -126,6 +131,7 @@ test('Dad scares a preparing magma cube; it cannot start or finish that leap', (
   game.update(1.3);
   assert.equal(monster.windup, 0);
   assert.equal(monster.leap, null);
+  assert.equal(monster.landing, null);
   assert.ok(monster.x < 10);
   assert.equal(state.lives, 3);
 });
@@ -151,9 +157,11 @@ test('the pumpkin guard warns before lighting three corridor cells; the lantern 
   game.update(0.1);
   assert.ok(monster.windup > 0);
   assert.deepEqual(monster.cells, [[9, 13], [8, 13], [7, 13]]);
+  assert.equal(monster.cast, null);
   assert.equal(state.slow, 0);
   game.update(1);
   const beam = state.effects.find(effect => effect.type === 'lantern');
+  assert.equal(monster.cast.dir, 'left');
   assert.deepEqual(beam.cells, [[9, 13], [8, 13], [7, 13]]);
   assert.ok(state.slow > 0);
   assert.equal(state.lives, 3);
@@ -332,6 +340,7 @@ test('a wither skeleton marks two corridor tiles before a slash that slows the h
   assert.deepEqual(monster.cells, [[4, 13], [5, 13]]);
   assert.equal(state.slow, 0);
   advanceUntil(game, () => state.effects.some(e => e.type === 'wither_slash'));
+  assert.deepEqual(monster.cast, { at: state.time, dir: 'right' });
   assert.ok(state.slow > 0);
   assert.equal(state.lives, 3);
   place(state.player, 1, 13);

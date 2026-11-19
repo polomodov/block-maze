@@ -371,17 +371,27 @@ function warning(ctx, x, y, tile, time) {
 }
 
 function cloud(ctx, effect, tile, time) {
-  const cx = Math.round((effect.x+.5)*tile), cy = Math.round((effect.y+.5)*tile);
-  const phase = Math.floor(time * 4 + effect.x) % 3;
-  rect(ctx,'#774487',cx-8,cy-4,16,10);
-  rect(ctx,'#854999',cx-5,cy+5,11,2);
-  rect(ctx,'#ba68c2',cx-8,cy-2,6,6);
-  rect(ctx,'#c578d0',cx-4,cy-5-phase,8,8);
-  rect(ctx,'#a45db6',cx+4,cy-3,5,7);
-  rect(ctx,'#dd9bdb',cx-7,cy-3,4,2);
-  rect(ctx,'#f8b9f1',cx-2,cy-5-phase,4,2);
-  rect(ctx,'#d98bd6',cx+5,cy-3,2,1);
-  rect(ctx,'#f4a3e1',cx+6-phase,cy-9+phase,2,2);
+  const cx=(effect.x+.5)*tile, cy=(effect.y+.5)*tile, age=3-effect.remaining;
+  // Clip each billow to the occupied tile so safe neighbouring corridors stay readable.
+  ctx.save();
+  ctx.beginPath();ctx.rect(cx-tile/2,cy-tile/2,tile,tile);ctx.clip();
+  ctx.globalAlpha*=Math.min(1,.58+age*5,.50+effect.remaining*2);
+  const seed=effect.x*2.7+effect.y;
+  for(let i=0;i<5;i++){
+    const angle=seed+i*1.26+age*.82, r=2.5+i%2;
+    const x=cx+Math.cos(angle)*r, y=cy+Math.sin(angle)*r*.7;
+    const radius=3.6+.95*Math.sin(age*3+i)+Math.min(age,1)*.75;
+    ctx.beginPath();ctx.ellipse(x,y,radius+.65,radius,0,0,Math.PI*2);
+    ctx.fillStyle=i%2?'#a85ac3':'#794e9d';ctx.fill();
+    ctx.beginPath();ctx.arc(x-.4,y-.5,radius*.72,3.6,5);
+    ctx.strokeStyle='#e59be3';ctx.lineWidth=.85;ctx.stroke();
+  }
+  for(let i=0;i<3;i++){
+    const t=(age*1.4+i/3)%1;
+    ctx.fillStyle='#ffd7fb';
+    ctx.fillRect(cx+Math.sin(seed+i*3.1+t)*5.4,cy-t*6.8,1.3,1.2);
+  }
+  ctx.restore();
 }
 
 export function drawEndThreats(ctx,state,tile) {
@@ -406,16 +416,26 @@ export function drawEndThreats(ctx,state,tile) {
 export function drawFlyingDragon(ctx,state,tile) {
   const dragon = state.dragon;
   if (!dragon) return;
-  const x = Math.round((dragon.x+.5)*tile), y = Math.round((dragon.y+.5)*tile);
-  const wing = Math.sin(state.time * 3.6);
-  const scale = .64;
+  const x=(dragon.x+.5)*tile, y=(dragon.y+.5)*tile;
+  const wing=Math.sin(state.time*3.6);
   ctx.save();
-  ctx.translate(x,y-3);
-  ctx.scale(dragon.dir === 'left' ? -scale : scale, scale);
+  ctx.translate(x,y-3+wing*.7);
+  const scale=.64;
+  ctx.scale(dragon.dir==='left'?-scale:scale,scale);
+  ctx.rotate(wing*.025);
   ctx.drawImage(dragonFrame(Math.round(wing*4)),-54,-40);
-  if (dragon.phase === 'breathing') {
-    for (const [dx,dy] of [[40,0],[42,3],[45,6],[48,11]]) {
-      rect(ctx,dy%2 ? pink : '#b36fc8',dx,dy + Math.round(wing),2,3);
+  if (dragon.phase==='breathing') {
+    const ahead=dragon.cells.reduce((nearest,[tx])=>Math.min(nearest,Math.abs(tx-dragon.x)),Infinity);
+    const breath=Math.max(0,1-ahead/4.6);
+    if (breath>0) {
+      const glow=ctx.createRadialGradient(38,-4,0,38,-4,8);
+      glow.addColorStop(0,'rgba(255,217,255,'+breath+')');glow.addColorStop(1,'rgba(194,105,247,0)');
+      ctx.fillStyle=glow;ctx.fillRect(30,-12,16,16);
+      for(let i=0;i<5;i++){
+        const t=(state.time*2.7+i/5)%1;
+        ctx.beginPath();ctx.ellipse(39+t*11,-3+t*t*14+Math.sin(t*5+i)*1.15,1.4+2*t,1.2+2*t,0,0,Math.PI*2);
+        ctx.fillStyle='rgba(227,147,244,'+((1-t)*.8*breath)+')';ctx.fill();
+      }
     }
   }
   ctx.restore();
