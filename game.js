@@ -1,6 +1,6 @@
 import { createGame } from './engine.js?v=guitar-solo-1';
 import { LEVELS } from './levels.js?v=end-family-1';
-import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=guitar-solo-1';
+import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=studio-1';
 
 const byId = (id) => document.getElementById(id);
 const lobby = byId('lobby');

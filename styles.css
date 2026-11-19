@@ -23,8 +23,7 @@ body {
   --realm-dark: #293f35;
   margin: 0;
   background: var(--bg);
-  background-image: linear-gradient(135deg, #31484438, transparent 42%), conic-gradient(at 2px 2px, transparent 75%, #4d66613b 0);
-  background-size: 100% 100%, 12px 12px;
+  background-image: radial-gradient(ellipse at 14% 5%, #365a5366, transparent 48rem), radial-gradient(ellipse at 80% 28%, #293e5559, transparent 44rem);
   color: var(--ink);
   font: 1rem/1.45 var(--sans);
   min-height: 100svh;
@@ -93,7 +92,7 @@ nav,
 }
 .wordmark img {
   margin-right: 3px;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 .wordmark span {
   color: var(--lime);
@@ -114,7 +113,7 @@ nav {
 #dpad button {
   background: #212d2e;
   border: 1px solid #435351;
-  border-radius: 3px;
+  border-radius: 7px;
   box-shadow: inset 0 1px #ffffff0e;
 }
 .tool {
@@ -168,7 +167,8 @@ main {
   overflow: hidden;
   background: #254843;
   border: 2px solid #546957;
-  box-shadow: 0 4px 0 #090e10;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px #080f1545;
 }
 .banner canvas,
 .banner:after {
@@ -195,7 +195,7 @@ main {
 .banner canvas {
   object-fit: cover;
   object-position: center 55%;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 .banner:after {
   content: "";
@@ -256,6 +256,7 @@ main {
   min-height: 44px;
   line-height: 1.25;
   text-align: center;
+  border-radius: 7px;
   border: 1px solid #455353;
   background: #202b2e;
   color: #c6d0c9;
@@ -309,8 +310,8 @@ main {
   align-items: start;
 }
 h2 {
-  font: 400 1.08rem/1.6 var(--pixel);
-  letter-spacing: -0.045em;
+  font: 750 1.35rem/1.3 var(--sans);
+  letter-spacing: -0.025em;
   margin: 0 0 15px;
 }
 h3 {
@@ -339,7 +340,9 @@ p {
   background: #202c2e;
   border: 2px solid #445253;
   cursor: pointer;
-  box-shadow: 0 3px 0 #080f10;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px #080f1433;
 }
 .hero.maxim { --hero-ink: #ffb765; }
 .hero.mom { --hero-ink: #c9aaff; }
@@ -377,7 +380,7 @@ p {
   display: block;
   object-fit: cover;
   object-position: 50% 20%;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 .selector {
   position: absolute;
@@ -412,8 +415,8 @@ p {
   background: linear-gradient(115deg, #2c3a3b, #1c282b 75%);
 }
 .hero-copy strong {
-  font: 400 0.99rem/1.4 var(--pixel);
-  letter-spacing: -0.04em;
+  font: 750 1.18rem/1.3 var(--sans);
+  letter-spacing: -0.015em;
 }
 .hero-copy > span {
   font-size: 0.91rem;
@@ -494,12 +497,12 @@ p {
   color: #192318;
   border: 2px solid #e5ff9a;
   border-bottom-color: #9cb348;
-  border-radius: 2px;
+  border-radius: 7px;
   box-shadow:
     0 4px 0 #657d31,
     0 6px 0 #091010;
-  font: 400 0.88rem/1.5 var(--pixel);
-  letter-spacing: -0.055em;
+  font: 750 1.04rem/1.5 var(--sans);
+  letter-spacing: .005em;
   min-height: 49px;
   padding: 10px 16px;
 }
@@ -546,7 +549,8 @@ p {
 .guide-body {
   background: var(--panel);
   border: 1px solid var(--border);
-  box-shadow: 0 3px 0 #0b1112;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px #080f1433;
   padding: 0 19px;
 }
 .mission,
@@ -602,7 +606,7 @@ p {
   width: min(100%, 48px);
   aspect-ratio: 1;
   height: auto;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 .life-note {
   color: var(--muted);
@@ -671,7 +675,7 @@ p {
 }
 .hud img,
 #hud-portrait {
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 #hud-portrait {
   width: 29px;
@@ -705,13 +709,15 @@ p {
   position: relative;
   background: #0b1415;
   border: 2px solid var(--realm-edge);
-  box-shadow: 0 4px 0 #080f10;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 10px 28px #080f134d;
 }
 #board {
   width: 100%;
   height: auto;
   display: block;
-  image-rendering: pixelated;
+  image-rendering: auto;
   touch-action: none;
   outline-offset: 1px;
 }
@@ -760,7 +766,7 @@ kbd {
   background: #273331;
   padding: 2px 4px;
   color: #d8e2d8;
-  border-radius: 2px;
+  border-radius: 7px;
 }
 #dpad {
   display: none;
@@ -864,7 +870,7 @@ dialog .primary {
     padding: 12px 9px;
   }
   .hero-copy strong {
-    font-size: 0.85rem;
+    font-size: 1.04rem;
   }
 }
 @media (max-width: 640px) {
@@ -923,7 +929,7 @@ dialog .primary {
     margin-top: 22px;
   }
   h2 {
-    font-size: 0.92rem;
+    font-size: 1.16rem;
     margin-bottom: 12px;
   }
   .levels { display: block; padding: 8px; }
@@ -1000,7 +1006,7 @@ dialog .primary {
     flex-wrap: wrap;
   }
   .arena-header h2 {
-    font-size: 0.58rem;
+    font-size: .92rem;
   }
   .minor {
     font-size: 0.82rem;

@@ -1,9 +1,12 @@
+import { drawMazeMonster } from './maze-monsters.js';
+import { configureBoard } from './display.js';
+import { tileFinish, lightScene, drawGem, landmarkBounds, animateLandmark, boardingMarks, lavaShimmer } from './maze-materials.js';
 import { drawTempleFixture, templeFlames } from './temple-art.js?v=end-family-1';
 import { arcadeTile, drawArcadeLandscape, drawAttraction, drawRideLights } from './arcade-art.js?v=end-family-1';
 import { drawStoreLandscape, storeTile, drawStoreFixture, storeMonsterPixels, storeMonsterColors } from './store-art.js?v=end-family-1';
 import { drawMonsterEffects, showCharge, showSlow } from './monster-art.js?v=end-family-1';
 import { drawWaterparkLandscape, drawWaterRide, waterparkTile, waterRipples, drawRideAccess, riderPosition } from './waterpark-art.js?v=end-family-1';
-import { drawNetherLandscape, netherTile, drawNetherFixture, drawNetherBridges, drawLavaFlow, drawNetherThreats, netherMonsterPixels, netherMonsterColors } from './nether-art.js?v=end-family-1';
+import { drawNetherLandscape, netherTile, drawNetherFixture, drawNetherBridges, drawNetherThreats, netherMonsterPixels, netherMonsterColors } from './nether-art.js?v=end-family-1';
 import { drawCastleLandscape, castleTile, drawCastleFixture, castleLights, castleMonsterPixels, castleMonsterColors } from './castle-art.js?v=end-family-1';
 import { drawEndLandscape, endTile, drawEndFixture, drawEndThreats, drawFlyingDragon, endMonsterPixels, endMonsterColors, endermanColors } from './end-art.js?v=end-family-1';
 
@@ -116,15 +119,15 @@ function temple(ctx, x, ground, scale) {
 const levelArt = {
   temple: { landscape: drawTempleLandscape, tile: templeTile, fixture: drawTempleFixture, animate: templeFlames },
   end: { landscape: drawEndLandscape, tile: endTile, fixture: drawEndFixture, threats: drawEndThreats },
-  nether: { landscape: drawNetherLandscape, tile: netherTile, fixture: drawNetherFixture, bridges: drawNetherBridges, flow: drawLavaFlow, threats: drawNetherThreats },
+  nether: { landscape: drawNetherLandscape, tile: netherTile, fixture: drawNetherFixture, bridges: drawNetherBridges, flow: lavaShimmer, threats: drawNetherThreats },
   castle: { landscape: drawCastleLandscape, tile: castleTile, fixture: drawCastleFixture, animate: castleLights },
   arcade: { landscape: drawArcadeLandscape, tile: arcadeTile, fixture: drawAttraction, animate: drawRideLights },
   waterpark: { landscape: drawWaterparkLandscape, tile: waterparkTile, fixture: drawWaterRide, animate: waterRipples },
   store: { landscape: drawStoreLandscape, tile: storeTile, fixture: drawStoreFixture },
 };
 
-const worldSheet = './assets/world-panoramas.png?v=end-family-1';
-const realmSheet = './assets/realm-panoramas.png?v=end-family-1';
+const worldSheet = './assets/world-panoramas.webp';
+const realmSheet = './assets/realm-panoramas.webp';
 const panoramaFrames = {
   temple: [worldSheet, 0], arcade: [worldSheet, 1], waterpark: [worldSheet, 2], store: [worldSheet, 3],
   nether: [realmSheet, 0], castle: [realmSheet, 1], end: [realmSheet, 2],
@@ -132,15 +135,26 @@ const panoramaFrames = {
 const images = new Map();
 const pendingFrames = new WeakMap();
 
-function illustratedFrame(canvas, path, col, row, width, height, placeholder) {
-  const ctx = surface(canvas, width, height);
+function loadIllustration(path) {
   let image = images.get(path);
   if (!image) {
     image = new Image();
     image.src = new URL(path, import.meta.url);
     images.set(path, image);
   }
-  const paint = () => ctx.drawImage(image, col * width, row * height, width, height, 0, 0, width, height);
+  return image;
+}
+
+function illustratedFrame(canvas, path, col, row, width, height, placeholder) {
+  const ctx = surface(canvas, width, height);
+  const image = loadIllustration(path);
+  const paint = () => {
+    const frameWidth = path.includes('hero-portraits') ? image.naturalWidth / 2 : image.naturalWidth;
+    const frameHeight = Math.round(frameWidth * height / width);
+    canvas.width = frameWidth;
+    canvas.height = frameHeight;
+    ctx.drawImage(image, col * frameWidth, row * frameHeight, frameWidth, frameHeight, 0, 0, frameWidth, frameHeight);
+  };
   pendingFrames.delete(canvas);
   if (image.complete && image.naturalWidth) {
     paint();
@@ -208,7 +222,7 @@ const portraitFrames = { kirill: [0, 0], maxim: [1, 0], mom: [0, 1], dad: [1, 1]
 
 export function drawPortrait(canvas, hero) {
   const [col, row] = portraitFrames[hero] || [0, 0];
-  const sheet = hero === 'pasha' ? './assets/pasha-portrait.png' : './assets/hero-portraits.png?v=end-family-1';
+  const sheet = hero === 'pasha' ? './assets/pasha-portrait.webp' : './assets/hero-portraits.webp';
   illustratedFrame(canvas, sheet, col, row, 192, 144, ctx => {
     box(ctx, '#273d42', 0, 0, 192, 144);
     ctx.save();
@@ -319,7 +333,6 @@ const monsterColors = {
   v:'#358982', l:'#5e6490', p:'#63505d', b:'#352f42', a:'#846975', r:'#e77745', w:'#ffaf65'
 };
 
-const creeperFlash = { q: '#485052', h: '#fff9cc', g: '#fff3af', d: '#eddfa3', o: '#807968' };
 const guitarColors = {
   q:'#2d2539', r:'#d75f48', t:'#ffa771', b:'#93423f', h:'#59313c',
   s:'#fff1bd', c:'#a57852', w:'#fff6dd',
@@ -440,23 +453,32 @@ function walkFrame(actor) {
   return midStep > .2 && midStep < .8 ? (Math.floor(travel) % 2 ? 1 : -1) : 0;
 }
 
-const walkers = new Set(['zombie', 'skeleton', 'wither_skeleton', 'drowned', 'enderman', 'pumpkin_guard']);
 
 function contactShadow(ctx, x, y, width = 12) {
-  const left = x - Math.floor(width / 2);
-  box(ctx, 'rgba(7,13,21,.4)', left, y + 6, width, 3);
-  box(ctx, 'rgba(7,13,21,.25)', left - 1, y + 7, width + 2, 1);
+  ctx.save();
+  ctx.translate(x,y+6.7);
+  ctx.scale(width*.55,2.1);
+  const shadow=ctx.createRadialGradient(0,0,.2,0,0,1);
+  shadow.addColorStop(0,'rgba(6,10,18,.58)');shadow.addColorStop(1,'rgba(6,10,18,0)');
+  ctx.fillStyle=shadow;ctx.fillRect(-1,-1,2,2);
+  ctx.restore();
 }
 
 export function drawMonsterPortrait(canvas, type) {
-  const ctx = surface(canvas,24,24);
-  ctx.clearRect(0,0,24,24);
-  box(ctx,'#203533',4,20,16,2);
-  sprite(ctx,type,monsterPalettes[type] || monsterColors,4,5);
+  const ctx = surface(canvas,96,96);
+  ctx.clearRect(0,0,96,96);
+  ctx.save();
+  ctx.scale(4,4);
+  contactShadow(ctx,12,14);
+  if (!drawMazeMonster(ctx,{type},12,13,0)) {
+    sprite(ctx,type,monsterPalettes[type] || monsterColors,4,5);
+  }
+  ctx.restore();
 }
 
 const TILE = 20;
 const backgrounds = new WeakMap();
+const landmarkCells = { stone_mask:0, carousel:1, typhoon:2, living_room:3, lavafall:4, gatehouse:5, crystal_spires:6, cauldron:7, brazier:8, slide:9, claw:10, water_slide:11, wave_pool:12, show_kitchen:13, warehouse:14, basalt_columns:15, crimson_fungi:16, pumpkin_patch:17, exit_portal:18, chorus_grove:19 };
 
 function floorTile(ctx, x, y, roll) {
   const base = ['#21312f','#223331','#233431','#243431'];
@@ -528,48 +550,40 @@ function templeTile(ctx, map, col, row, tile, variation) {
 
 function background(canvas,state) {
   const previous = backgrounds.get(canvas);
-  if (previous?.map === state.map) return previous.canvas;
+  const atlas = loadIllustration('./assets/maze-landmarks.webp');
+  const painted = atlas.complete && atlas.naturalWidth > 0;
+  const width = state.width*TILE, height = state.height*TILE;
+  if (previous?.map === state.map && previous.width === canvas.width && previous.painted === painted) return previous.canvas;
   const layer = document.createElement('canvas');
-  const ctx = surface(layer,state.width*TILE,state.height*TILE);
+  layer.width = canvas.width;
+  layer.height = canvas.height;
+  const ctx = layer.getContext('2d');
+  ctx.scale(layer.width/width,layer.height/height);
+  ctx.imageSmoothingQuality = 'high';
   const rand = randomSequence(12937);
   const theme = levelArt[state.levelId];
   for (let row=0;row<state.height;row++) {
     for (let col=0;col<state.width;col++) {
       const variation = Math.floor(rand()*1031);
       theme.tile(ctx,state.map,col,row,TILE,variation);
-      if (state.map[row][col] === '.') {
-        // A short cast shadow anchors each wall to the floor and leaves the route clear.
-        const x = col * TILE, y = row * TILE;
-        if (state.map[row-1]?.[col] === '#') {
-          box(ctx,'rgba(10,15,26,.28)',x,y,TILE,2);
-          box(ctx,'rgba(10,15,26,.12)',x+1,y+2,TILE-1,1);
-        }
-        if (state.map[row][col-1] === '#') box(ctx,'rgba(10,15,26,.20)',x,y,2,TILE);
-      }
+      tileFinish(ctx,state.levelId,state.map,col,row,TILE,variation);
     }
   }
-  for (const attraction of state.decorations) theme.fixture(ctx,attraction,TILE);
-  theme?.bridges?.(ctx,state,TILE);
-  if (state.ride) drawRideAccess(ctx, state.ride, TILE);
-  backgrounds.set(canvas,{canvas:layer,map:state.map});
-  return layer;
-}
-
-function emerald(ctx, x, y, flare) {
-  box(ctx, '#152d30', x-3, y+3, 7, 2);
-  box(ctx, '#23423c', x-3, y-3, 7, 6);
-  box(ctx, '#184b46', x-4, y-1, 9, 3);
-  box(ctx, '#43c685', x-3, y-1, 7, 3);
-  box(ctx, '#8ae49c', x-2, y-3, 5, 2);
-  box(ctx, '#d4f9c3', x-2, y-2, 2, 3);
-  box(ctx, '#59db9a', x, y-1, 2, 4);
-  box(ctx, '#2a946e', x+2, y-1, 2, 3);
-  box(ctx, '#248160', x-2, y+2, 5, 1);
-  box(ctx, '#4eae7d', x-1, y+3, 3, 1);
-  if (flare) {
-    box(ctx, '#e6ffe1', x-3, y-2, 3, 1);
-    box(ctx, '#e6ffe1', x-2, y-3, 1, 3);
+  lightScene(ctx,state,TILE);
+  for (const attraction of state.decorations) {
+    if (painted && Object.hasOwn(landmarkCells,attraction.type)) {
+      const cell = landmarkCells[attraction.type];
+      const cw = atlas.naturalWidth/4, ch = atlas.naturalHeight/5;
+      const {x,y,w,h}=landmarkBounds(attraction,TILE);
+      ctx.drawImage(atlas,(cell%4)*cw,Math.floor(cell/4)*ch,cw,ch,x,y,w,h);
+    } else {
+      theme.fixture(ctx,attraction,TILE);
+    }
   }
+  theme?.bridges?.(ctx,state,TILE);
+  if (state.ride) (painted ? boardingMarks : drawRideAccess)(ctx,state.ride,TILE);
+  backgrounds.set(canvas,{canvas:layer,map:state.map,width:canvas.width,painted});
+  return layer;
 }
 
 function pickupSpark(ctx, pickup, time) {
@@ -583,8 +597,37 @@ function pickupSpark(ctx, pickup, time) {
   }
 }
 
+const heroColumn = { kirill:0, maxim:1, mom:2, dad:3, pasha:4 };
+
+function familyFigure(ctx,state,x,y,stride) {
+  const hero = state.hero, actor = state.player;
+  const back = actor.dir === 'up' && !state.solo;
+  const atlas = loadIllustration('./assets/maze-figures.webp');
+  if (!atlas.complete || !atlas.naturalWidth) {
+    sprite(ctx,hero,heroColors[hero],x-8,y-8,actor.dir==='left',stride,back);
+    return;
+  }
+  const sw = atlas.naturalWidth/5, sh = atlas.naturalHeight/2;
+  const sx = sw*heroColumn[hero], sy = back ? sh : 0;
+  const step = actor.target ? Math.sin((actor.x+actor.y)*Math.PI) : 0;
+  const height = 23.5, width = height*sw/sh;
+  ctx.save();
+  ctx.translate(x,y+8.7);
+  ctx.scale(actor.dir==='left' ? -1 : 1,1);
+  ctx.rotate(step*.042);
+  ctx.translate(0,-Math.abs(step)*.62);
+  const split = .77;
+  ctx.drawImage(atlas,sx,sy,sw,sh*split,-width/2,-height,width,height*split+.03);
+  for (let side=0;side<2;side++) {
+    const swing=step*(side ? 1 : -1);
+    ctx.drawImage(atlas,sx+sw*side/2,sy+sh*split,sw/2,sh*(1-split),
+      -width/2+side*width/2,-height*(1-split),width/2,height*(1-split)+swing*.95);
+  }
+  ctx.restore();
+}
+
 function actorPos(actor) {
-  return [Math.round((actor.x+0.5)*TILE), Math.round((actor.y+0.5)*TILE)];
+  return [(actor.x+0.5)*TILE, (actor.y+0.5)*TILE];
 }
 
 const booLetters = [
@@ -593,7 +636,7 @@ const booLetters = [
 
 function drawBoo(ctx, x, y) {
   // The balloon stays clear of the player and within the board at its edges.
-  const left = Math.min(x + 2, ctx.canvas.width - 28);
+  const left = Math.min(x + 2, ctx.canvas.width / ctx.getTransform().a - 28);
   const top = y < 27 ? y + 9 : y - 25;
   box(ctx,'#382c3a', left, top, 25, 16);
   box(ctx,'#ffe9b2', left + 1, top + 1, 23, 13);
@@ -653,11 +696,12 @@ function drawSoloist(ctx, x, y, age, left) {
 }
 
 export function drawBoard(canvas,state) {
-  const ctx = surface(canvas,state.width*TILE,state.height*TILE);
-  ctx.drawImage(background(canvas,state),0,0);
+  const ctx = configureBoard(canvas,state.width*TILE,state.height*TILE);
+  ctx.drawImage(background(canvas,state),0,0,state.width*TILE,state.height*TILE);
   const theme = levelArt[state.levelId];
   theme?.flow?.(ctx,state,TILE);
-  const animateRide = theme?.animate;
+  const painted = backgrounds.get(canvas).painted;
+  const animateRide = painted ? animateLandmark : theme?.animate;
   if (animateRide) {
     for (const ride of state.decorations) animateRide(ctx,ride,TILE,state.time);
   }
@@ -666,7 +710,7 @@ export function drawBoard(canvas,state) {
   theme?.threats?.(ctx,state,TILE);
   const glint = Math.floor(state.time * 5);
   for (const index of state.gems) {
-    emerald(ctx,(index%state.width+0.5)*TILE,(Math.floor(index/state.width)+0.5)*TILE,(glint + index * 7) % 43 === 0);
+    drawGem(ctx,(index%state.width+0.5)*TILE,(Math.floor(index/state.width)+0.5)*TILE,(glint + index * 7) % 43 === 0);
   }
   if (state.lastPickup) pickupSpark(ctx, state.lastPickup, state.time);
   // Ground actors stay visible even when the dragon passes directly above them.
@@ -687,12 +731,10 @@ export function drawBoard(canvas,state) {
       ctx.translate(Math.round(beat * 2), -Math.round(Math.abs(beat) * 3));
     }
     if (monster.watched) ctx.globalAlpha = .62;
-    const palette = monsterPalettes[monster.type] || monsterColors;
     if (monster.type === 'shulker') {
       shulkerShell(ctx, monster, x-8, y-8);
     } else {
-      const stride = !monster.stun && walkers.has(monster.type) ? walkFrame(monster) : 0;
-      sprite(ctx,monster.type,palette,x-8,y-8-hop,monster.dir==='left',stride);
+      drawMazeMonster(ctx,monster,x,y-hop,state.time);
     }
     ctx.restore();
     if (monster.dance > 0) {
@@ -703,7 +745,7 @@ export function drawBoard(canvas,state) {
       // Two warm pulses on the preparing creeper leave the surrounding board steady.
       ctx.save();
       ctx.globalAlpha = .15 + .65 * Math.sin(Math.PI * 2 * monster.windup) ** 2;
-      sprite(ctx,'creeper',creeperFlash,x-8,y-8,monster.dir==='left');
+      drawMazeMonster(ctx,monster,x,y-hop,state.time,true);
       ctx.restore();
     }
     showCharge(ctx,monster,x,y-hop);
@@ -733,7 +775,7 @@ export function drawBoard(canvas,state) {
   if (state.invisible > 0) ctx.globalAlpha = 0.42;
   const lift = state.levitation > 0 ? 3 + Math.round(Math.sin(state.time * 8)) : 0;
   const stride = lift || state.rideRemaining > 0 ? 0 : walkFrame(state.player);
-  sprite(ctx,state.hero,heroColors[state.hero],x-8,y-8-lift,state.player.dir==='left',stride,state.player.dir==='up' && !state.solo);
+  familyFigure(ctx,state,x,y-lift,stride);
   if (state.solo) drawSoloist(ctx,x,y-lift,state.solo.age,state.player.dir==='left');
   ctx.restore();
   if (state.invisible > 0) {

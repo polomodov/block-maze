@@ -71,7 +71,8 @@ GitHub Pages раздаёт файлы из корня ветки `main`. Обр
 ## Что можно поменять вместе
 
 - Перестрой один из лабиринтов в `levels.js`. Символ `#` задаёт стену, точка задаёт пол, а `~` обозначает лаву. Клетки мостов перечислены в `bridges` и должны быть проходимыми. Оставь проходы к изумрудам и проверь стартовые позиции героев и монстров.
-- Измени цвета курток и маленькие спрайты героев в `art.js`. Большие портреты лежат в `assets/hero-portraits.png` и `assets/pasha-portrait.png`. Обложки семи уровней собраны полосами в `assets/world-panoramas.png` и `assets/realm-panoramas.png`. Резная маска и жаровни храма нарисованы в `temple-art.js`. Аттракционы игрового центра нарисованы в `arcade-art.js`, а воронка «Тайфуна», горки и волновой бассейн — в `waterpark-art.js`. Гостиная, кухня и склад магазина находятся в `store-art.js`. Нижний мир, замок и Край нарисованы в `nether-art.js`, `castle-art.js` и `end-art.js`.
+- Фигурки семьи на игровом поле лежат в `assets/maze-figures.webp`, портреты для выбора героя — в `assets/hero-portraits.webp` и `assets/pasha-portrait.webp`. Большинство монстров рисует `maze-monsters.js`, а шалкера и дракона — `end-art.js`.
+- Чтобы изменить вид мира, ищи его панораму в `assets/world-panoramas.webp` или `assets/realm-panoramas.webp`, а достопримечательности — в `assets/maze-landmarks.webp`. В `maze-materials.js` настраиваются освещение, поверхности и анимация декораций. За движение на водных горках отвечает `waterpark-art.js`.
 - Экран выбора героя находится в `index.html`, оформление в `styles.css`, управление в `game.js`.
 
 Код и оригинальная пиксельная графика распространяются по [лицензии MIT](LICENSE). Шрифт Press Start 2P распространяется по [SIL Open Font License](assets/FONT-LICENSE.txt). Это независимая фанатская игра по мотивам Minecraft. Mojang и Microsoft в разработке не участвовали.
