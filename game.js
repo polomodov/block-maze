@@ -1,7 +1,7 @@
 import { playGuitar, stopGuitar, performanceAge } from './guitar.js?v=encore-1';
-import { createGame } from './engine.js?v=living-worlds-1';
+import { createGame } from './engine.js?v=dragon-flight-1';
 import { LEVELS } from './levels.js?v=end-family-1';
-import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=living-worlds-1';
+import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=dragon-flight-1';
 
 const byId = (id) => document.getElementById(id);
 const lobby = byId('lobby');
@@ -44,7 +44,7 @@ const monsters = {
   ghost: { name: 'Призрак', hint: 'Замирает, когда ты смотришь прямо на него в коридоре. Отвернёшься — и он снова двинется.' },
   pumpkin_guard: { name: 'Тыквенный страж', hint: 'Поднимает фонарь и освещает три клетки перед собой. Сверни за угол, чтобы свет тебя не замедлил.' },
   shulker: { name: 'Шалкер', hint: 'Сидит в раковине и пускает медленный шар. Шар может один раз повернуть за тобой и замедлит тебя при попадании.' },
-  ender_dragon: { name: 'Дракон Края', hint: 'Летает над стенами и выдыхает фиолетовые облака. Возвращайся за изумрудами, когда облака рассеются.' },
+  ender_dragon: { name: 'Дракон Края', hint: 'Складывает крылья и пикирует к розовым меткам. Сверни в соседний коридор и возвращайся за изумрудами, когда дыхание рассеется.' },
 };
 const descriptions = {
   temple: 'Собери изумруды и ускользни от монстров.',

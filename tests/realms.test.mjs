@@ -214,7 +214,26 @@ test('a dragon pass marks three separated floor cells, then leaves three lingeri
   assert.equal(state.player.y, 12); // One step up, then a wall.
   assert.deepEqual(state.dragon.cells, targets);
   const cloudCount = () => state.effects.filter(e => e.type === 'dragon_breath').length;
+  advanceUntil(game, () => state.dragon.phase === 'dive');
+  const heightBeforeDive = state.dragon.altitude;
+  game.update(.4);
+  assert.equal(state.dragon.phase, 'dive');
+  assert.ok(state.dragon.altitude < heightBeforeDive && state.dragon.pitch > .3 && state.dragon.dive > .7);
+  assert.deepEqual(state.dragon.cells, targets);
+  assert.equal(cloudCount(), 0);
+  game.pause();
+  const pausedDive = structuredClone(state.dragon);
+  game.update(6);
+  assert.deepEqual(state.dragon, pausedDive);
+  game.resume();
+  advanceUntil(game, () => cloudCount() === 1);
+  assert.equal(state.dragon.phase, 'breathing');
+  assert.deepEqual([state.dragon.lastDrop.x, state.dragon.lastDrop.y], targets[0]);
   advanceUntil(game, () => cloudCount() === 3);
+  assert.equal(state.dragon.phase, 'climb');
+  const heightBeforeClimb = state.dragon.altitude;
+  game.update(.4);
+  assert.ok(state.dragon.altitude > heightBeforeClimb && state.dragon.pitch < -.25);
   for (const [x, y] of targets) {
     assert.equal(state.map[y][x], '.');
     assert.ok(state.effects.some(e => e.type === 'dragon_breath' && e.x === x && e.y === y && e.remaining > 1));

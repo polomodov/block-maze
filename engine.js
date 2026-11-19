@@ -1,6 +1,6 @@
 import { LEVELS } from './levels.js?v=end-family-1';
 import { advanceEffects, BLAST_LIFETIME, monsterSpeed, resetSkill, startDancing } from './monster-rules.js?v=living-worlds-1';
-import { createDragon, flyDragon } from './dragon-rules.js?v=end-family-1';
+import { createDragon, flyDragon } from './dragon-rules.js?v=dragon-flight-1';
 
 // Positions use tile centers as integer coordinates. All clocks use active game seconds.
 const STEPS = {

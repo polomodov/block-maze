@@ -12,7 +12,7 @@ import { drawMonsterEffects, showCharge, showSlow } from './monster-art.js?v=liv
 import { drawWaterparkLandscape, drawWaterRide, waterparkTile, waterRipples, drawRideAccess, riderPosition } from './waterpark-art.js?v=end-family-1';
 import { drawNetherLandscape, netherTile, drawNetherFixture, drawNetherBridges, drawNetherThreats, netherMonsterPixels, netherMonsterColors } from './nether-art.js?v=end-family-1';
 import { drawCastleLandscape, castleTile, drawCastleFixture, castleLights, castleMonsterPixels, castleMonsterColors } from './castle-art.js?v=end-family-1';
-import { drawEndLandscape, endTile, drawEndFixture, drawEndThreats, drawFlyingDragon, endMonsterPixels, endMonsterColors, endermanColors } from './end-art.js?v=living-worlds-1';
+import { drawEndLandscape, endTile, drawEndFixture, drawEndThreats, drawFlyingDragon, endMonsterPixels, endMonsterColors, endermanColors } from './end-art.js?v=dragon-flight-1';
 
 // The artwork is drawn on integer grids and scaled by the browser as pixel art.
 function surface(canvas, width, height) {
