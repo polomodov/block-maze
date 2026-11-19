@@ -1,5 +1,5 @@
-import { LEVELS } from './levels.js?v=parks-1';
-import { advanceEffects, monsterSpeed, resetSkill } from './monster-rules.js?v=parks-1';
+import { LEVELS } from './levels.js?v=realms-1';
+import { advanceEffects, monsterSpeed, resetSkill } from './monster-rules.js?v=realms-1';
 
 // Positions use tile centers as integer coordinates. All clocks use active game seconds.
 const STEPS = {
@@ -89,6 +89,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     state.width = level.map[0].length;
     state.height = level.map.length;
     state.decorations = level.decorations;
+    state.bridges = level.bridges ?? [];
     state.ride = level.ride ?? null;
     fields.clear();
     state.gems = new Set();
@@ -278,7 +279,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     state.invisible = countdown(state.invisible, seconds);
     state.fear = countdown(state.fear, seconds);
     if (waiting || state.rideRemaining > 0 || state.invulnerable > 0 || state.invisible > 0 || state.fear > 0) return;
-    const touched = state.monsters.some(monster => monster.type !== 'creeper' && monster.stun === 0 &&
+    const touched = state.monsters.some(monster => monster.type !== 'creeper' && !monster.leap && monster.stun === 0 &&
       Math.hypot(monster.x - state.player.x, monster.y - state.player.y) < 0.58);
     if (!touched && !effectHit) return;
     if (--state.lives === 0) {

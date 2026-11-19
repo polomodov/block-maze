@@ -1,7 +1,10 @@
-import { arcadeTile, drawArcadeLandscape, drawAttraction, drawRideLights } from './arcade-art.js?v=parks-1';
-import { drawStoreLandscape, storeTile, drawStoreFixture, storeMonsterPixels, storeMonsterColors } from './store-art.js?v=parks-1';
-import { drawMonsterEffects, showCharge, showSlow } from './monster-art.js?v=parks-1';
-import { drawWaterparkLandscape, drawWaterRide, waterparkTile, waterRipples, drawRideAccess, riderPosition } from './waterpark-art.js?v=parks-1';
+import { arcadeTile, drawArcadeLandscape, drawAttraction, drawRideLights } from './arcade-art.js?v=realms-1';
+import { drawStoreLandscape, storeTile, drawStoreFixture, storeMonsterPixels, storeMonsterColors } from './store-art.js?v=realms-1';
+import { drawMonsterEffects, showCharge, showSlow } from './monster-art.js?v=realms-1';
+import { drawWaterparkLandscape, drawWaterRide, waterparkTile, waterRipples, drawRideAccess, riderPosition } from './waterpark-art.js?v=realms-1';
+
+import { drawNetherLandscape, netherTile, drawNetherFixture, drawNetherBridges, drawLavaFlow, netherMonsterPixels, netherMonsterColors } from './nether-art.js?v=realms-1';
+import { drawCastleLandscape, castleTile, drawCastleFixture, castleLights, castleMonsterPixels, castleMonsterColors } from './castle-art.js?v=realms-1';
 
 // The artwork is drawn on integer grids and scaled by the browser as pixel art.
 function surface(canvas, width, height) {
@@ -110,6 +113,8 @@ function temple(ctx, x, ground, scale) {
 }
 
 const levelArt = {
+  nether: { landscape: drawNetherLandscape, tile: netherTile, fixture: drawNetherFixture, bridges: drawNetherBridges, flow: drawLavaFlow },
+  castle: { landscape: drawCastleLandscape, tile: castleTile, fixture: drawCastleFixture, animate: castleLights },
   arcade: { landscape: drawArcadeLandscape, tile: arcadeTile, fixture: drawAttraction, animate: drawRideLights },
   waterpark: { landscape: drawWaterparkLandscape, tile: waterparkTile, fixture: drawWaterRide, animate: waterRipples },
   store: { landscape: drawStoreLandscape, tile: storeTile, fixture: drawStoreFixture },
@@ -390,6 +395,8 @@ export function drawPortrait(canvas, hero) {
 
 const spritePixels = {
   ...storeMonsterPixels,
+  ...netherMonsterPixels,
+  ...castleMonsterPixels,
   guardian: [
     '........54......','...45...44..54..','...44qqqqqq445..','....q313331q4...',
     '.544q1131112q...','....q1666612q..2','..qqq6677611qq12','..q2q6677612q13q',
@@ -470,6 +477,13 @@ const monsterColors = {
 
 const creeperFlash = { q: '#485052', h: '#fff9cc', g: '#fff3af', d: '#eddfa3', o: '#807968' };
 
+const monsterPalettes = {
+  ghast: netherMonsterColors,
+  magma_cube: netherMonsterColors,
+  ghost: castleMonsterColors,
+  pumpkin_guard: castleMonsterColors,
+};
+
 const baseHeroColors = {
   q:'#232d36', h:'#875135', l:'#b77c46', d:'#4e3a30', f:'#eeb789', o:'#293940',
   w:'#fdf1d4', k:'#bc835d', n:'#465467'
@@ -499,7 +513,7 @@ export function drawMonsterPortrait(canvas, type) {
   const ctx = surface(canvas,24,24);
   ctx.clearRect(0,0,24,24);
   box(ctx,'#203533',4,20,16,2);
-  sprite(ctx,type,monsterColors,4,5);
+  sprite(ctx,type,monsterPalettes[type] || monsterColors,4,5);
 }
 
 const TILE = 20;
@@ -590,6 +604,7 @@ function background(canvas,state) {
     }
   }
   for (const attraction of state.decorations) theme.fixture(ctx,attraction,TILE);
+  theme?.bridges?.(ctx,state,TILE);
   if (state.ride) drawRideAccess(ctx, state.ride, TILE);
   backgrounds.set(canvas,{canvas:layer,map:state.map});
   return layer;
@@ -631,7 +646,9 @@ function drawBoo(ctx, x, y) {
 export function drawBoard(canvas,state) {
   const ctx = surface(canvas,state.width*TILE,state.height*TILE);
   ctx.drawImage(background(canvas,state),0,0);
-  const animateRide = levelArt[state.levelId]?.animate;
+  const theme = levelArt[state.levelId];
+  theme?.flow?.(ctx,state,TILE);
+  const animateRide = theme?.animate;
   if (animateRide) {
     for (const ride of state.decorations) animateRide(ctx,ride,TILE,state.time);
   }
@@ -643,9 +660,15 @@ export function drawBoard(canvas,state) {
     const [x,y]=actorPos(monster);
     box(ctx,'#172927',x-6,y+6,13,3);
     const jumpPhase = state.time % .9;
-    const hop = monster.type === 'slime' && !monster.stun && jumpPhase < .55
+    let hop = monster.type === 'slime' && !monster.stun && jumpPhase < .55
       ? Math.round(3 * Math.sin(Math.PI * jumpPhase / .55)) : 0;
-    sprite(ctx,monster.type,monsterColors,x-8,y-8-hop,monster.dir==='left');
+    if (monster.leap) hop = Math.round(13 * Math.sin(Math.PI * monster.leap.progress));
+    if (monster.type === 'ghast') hop = 2 + Math.round(Math.sin(state.time * 3.5));
+    ctx.save();
+    if (monster.watched) ctx.globalAlpha = .62;
+    const palette = monsterPalettes[monster.type] || monsterColors;
+    sprite(ctx,monster.type,palette,x-8,y-8-hop,monster.dir==='left');
+    ctx.restore();
     if (monster.type === 'creeper' && monster.windup > 0) {
       // Two warm pulses on the preparing creeper leave the surrounding board steady.
       ctx.save();
@@ -653,7 +676,7 @@ export function drawBoard(canvas,state) {
       sprite(ctx,'creeper',creeperFlash,x-8,y-8,monster.dir==='left');
       ctx.restore();
     }
-    showCharge(ctx,monster,x,y);
+    showCharge(ctx,monster,x,y-hop);
     if (state.fear > 0) {
       box(ctx,'#8de5f5',x+6,y-10,2,3);
       box(ctx,'#d3f8ff',x+6,y-10,1,1);

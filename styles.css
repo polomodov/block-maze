@@ -209,7 +209,8 @@ main {
   font-size: 0.9rem;
 }
 .level-options {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   flex: 1;
 }
@@ -220,7 +221,9 @@ main {
   align-items: center;
   justify-content: center;
   padding: 8px 12px;
-  min-height: 38px;
+  min-height: 44px;
+  line-height: 1.25;
+  text-align: center;
   border: 1px solid #455353;
   background: #202b2e;
   color: #c6d0c9;
@@ -247,7 +250,11 @@ main {
 #lobby[data-level="arcade"] #title-second { color: #ffbe8b; }
 #lobby[data-level="waterpark"] .banner { border-color: #66a9ad; }
 #lobby[data-level="waterpark"] h1 { color: #bdfff4; }
-#lobby:is([data-level="waterpark"], [data-level="store"]) .banner p { max-width: 32ch; }
+.banner p { max-width: 34ch; }
+#lobby[data-level="nether"] .banner { border-color: #99524d; }
+#lobby[data-level="nether"] #title-second { color: #ffad69; }
+#lobby[data-level="castle"] .banner { border-color: #786591; }
+#lobby[data-level="castle"] #title-second { color: #ffc088; }
 #lobby[data-level="store"] .banner { border-color: #ac986b; }
 #lobby[data-level="store"] #title-second { color: #ffd183; }
 #lobby[data-level="store"] #monster-list {
@@ -724,11 +731,11 @@ dialog .primary {
   .monsters li { flex: none; }
   .monsters canvas { width: 40px; }
 }
+@media (min-width: 1120px) {
+  .level-options { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .level-option { padding-inline: 5px; gap: 5px; }
+}
 @media (max-width: 770px) {
-  .level-options {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .bar-inner,
   main {
     width: calc(100% - 30px);
@@ -810,6 +817,7 @@ dialog .primary {
     margin-bottom: 12px;
   }
   .levels { display: block; padding: 8px; }
+  .level-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .levels strong { position: absolute; clip-path: inset(50%); }
   #lobby[data-level="store"] #monster-list {
     grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));

@@ -70,6 +70,42 @@ const storeMap = Object.freeze([
   '#######################',
 ]);
 
+const netherMap = Object.freeze([
+  '#######################',
+  '#.........~~...###....#',
+  '#.#####.#.~~.#........#',
+  '#.#####.#....#.#####..#',
+  '#.#####.#.~~.#.#####..#',
+  '#.......#.~~.#.#####..#',
+  '#.####..#.~~.#........#',
+  '#...#..........######.#',
+  '##......#.~~.....#..#.#',
+  '##.######.~~.###....#.#',
+  '#..######.~~.###..##..#',
+  '#..######............##',
+  '#.####..#.~~.######...#',
+  '#.........~~..........#',
+  '#######################',
+]);
+
+const castleMap = Object.freeze([
+  '#######################',
+  '#.....................#',
+  '#.####..######.####.#.#',
+  '#.#.....######.####.#.#',
+  '#.#.###.######......#.#',
+  '#...................#.#',
+  '#.....###..#.####.....#',
+  '#.####..#..#..........#',
+  '#.####..#..#..#.#####.#',
+  '#.####..##.#..#.#####.#',
+  '#..........#..#.#####.#',
+  '#.####.###.#..#.......#',
+  '#...#.........#.####..#',
+  '#.....................#',
+  '#######################',
+]);
+
 export const LEVELS = {
   temple: {
     title: 'Храм изумруда',
@@ -120,7 +156,7 @@ export const LEVELS = {
   },
   store: {
     title: 'Мебельный магазин',
-    next: null,
+    next: 'nether',
     map: storeMap,
     start: [11, 13],
     monsters: [
@@ -134,6 +170,38 @@ export const LEVELS = {
       { type: 'living_room', x: 3, y: 2, width: 6, height: 3 },
       { type: 'show_kitchen', x: 14, y: 4, width: 5, height: 3 },
       { type: 'warehouse', x: 4, y: 9, width: 6, height: 3 },
+    ],
+  },
+  nether: {
+    title: 'Нижний мир',
+    next: 'castle',
+    map: netherMap,
+    start: [5, 13],
+    monsters: [
+      { type: 'ghast', start: [19, 2], patrol: [14, 11], speed: 1.75 },
+      { type: 'magma_cube', start: [12, 9], patrol: [1, 5], speed: 2.15 },
+    ],
+    bridges: [[10, 3], [11, 3], [10, 7], [11, 7], [10, 11], [11, 11]],
+    decorations: [
+      { type: 'lavafall', x: 2, y: 2, width: 5, height: 3 },
+      { type: 'basalt_columns', x: 15, y: 3, width: 5, height: 3 },
+      { type: 'crimson_fungi', x: 3, y: 9, width: 5, height: 3 },
+    ],
+  },
+  castle: {
+    title: 'Замок на Хеллоуин',
+    next: null,
+    map: castleMap,
+    start: [11, 13],
+    monsters: [
+      { type: 'witch', start: [1, 1], patrol: [7, 9], speed: 1.85 },
+      { type: 'ghost', start: [19, 1], patrol: [21, 13], speed: 2.25 },
+      { type: 'pumpkin_guard', start: [13, 5], patrol: [3, 10], speed: 1.95 },
+    ],
+    decorations: [
+      { type: 'gatehouse', x: 8, y: 2, width: 6, height: 3 },
+      { type: 'cauldron', x: 2, y: 7, width: 4, height: 3 },
+      { type: 'pumpkin_patch', x: 16, y: 8, width: 5, height: 3 },
     ],
   },
 };

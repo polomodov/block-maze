@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#101719" />
     <meta
       name="description"
-      content="Выбери героя и отправляйся за изумрудами в храм, игровой центр, аквапарк или мебельный магазин. Семейная пиксельная аркада для компьютера и телефона."
+      content="Выбери героя и собери изумруды в шести лабиринтах — от джунглей до Нижнего мира и замка на Хеллоуин. Семейная пиксельная аркада для компьютера и телефона."
     />
     <title>Храм изумруда · Блок Аркада</title>
     <link rel="icon" href="./assets/mark.svg" type="image/svg+xml" />
@@ -20,8 +20,8 @@
       type="font/ttf"
       crossorigin
     />
-    <link rel="stylesheet" href="./styles.css?v=parks-1" />
-    <script type="module" src="./game.js?v=parks-1"></script>
+    <link rel="stylesheet" href="./styles.css?v=realms-1" />
+    <script type="module" src="./game.js?v=realms-1"></script>
   </head>
   <body>
     <header class="topbar">
@@ -79,6 +79,14 @@
             <label class="level-option">
               <input class="sr-only" type="radio" name="level" value="store" />
               <span class="level-number" aria-hidden="true">04</span>Мебельный магазин
+            </label>
+            <label class="level-option">
+              <input class="sr-only" type="radio" name="level" value="nether" />
+              <span class="level-number" aria-hidden="true">05</span>Нижний мир
+            </label>
+            <label class="level-option">
+              <input class="sr-only" type="radio" name="level" value="castle" />
+              <span class="level-number" aria-hidden="true">06</span>Замок на Хеллоуин
             </label>
           </div>
         </div>
@@ -216,7 +224,7 @@
         <h2 id="help-heading">Как играть</h2>
         <p>
           Собери все изумруды на уровне. У тебя три жизни. Берегись монстров, стрел скелета и взрыва крипера.
-          Сначала пройди храм, затем игровой центр, аквапарк и мебельный магазин. В меню можно сразу выбрать любой из четырёх уровней.
+          Проходи лабиринты по порядку или выбери любой из шести уровней в меню.
         </p>
         <h3>Движение</h3>
         <p>
@@ -227,6 +235,10 @@
         <section id="waterpark-help" hidden>
           <h3>Горка «Тайфун»</h3>
           <p>Ищи изумруды вокруг водных горок и волнового бассейна. У стрелки под воронкой поверни вверх. Через секунду герой вынырнет на дорожке с другой стороны.</p>
+        </section>
+        <section id="nether-help" hidden>
+          <h3>Лава и мосты</h3>
+          <p>Переходи лаву по мостам. Магмовый куб может перепрыгнуть на другой берег. Если заметишь метку приземления, освободи эту клетку.</p>
         </section>
         <details class="help-monsters">
           <summary>Монстры этого уровня</summary>

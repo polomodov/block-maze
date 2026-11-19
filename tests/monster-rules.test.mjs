@@ -32,7 +32,7 @@ function until(game, predicate, seconds, description) {
 }
 
 test('waiting for the first move keeps monster abilities dormant', () => {
-  for (const level of ['temple', 'arcade', 'waterpark', 'store']) {
+  for (const level of ['temple', 'arcade', 'waterpark', 'store', 'nether', 'castle']) {
     const game = createGame('kirill', level);
     game.start();
     for (const monster of game.state.monsters) {

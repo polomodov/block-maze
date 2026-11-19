@@ -1,11 +1,16 @@
 // All durations below use active game time. Warning targets stay fixed until the attack resolves.
-const PREPARATION = { creeper: 1, skeleton: 0.65, elder_guardian: 0.9, enderman: 0.9 };
-const RECOVERY = { creeper: 3, skeleton: 5, elder_guardian: 8, enderman: 8 };
-const ARROW_STEP = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const PREPARATION = { creeper: 1, skeleton: 0.65, elder_guardian: 0.9, enderman: 0.9, ghast: 1, magma_cube: 0.65, pumpkin_guard: 1 };
+const RECOVERY = { creeper: 3, skeleton: 5, elder_guardian: 8, enderman: 8, ghast: 5, magma_cube: 3, pumpkin_guard: 6 };
+const STEP = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const FIREBALL_SPEED = 3.5;
+const FIREBALL_RANGE = 7;
+const LEAP_SECONDS = 0.55;
 
 export function resetSkill(monster) {
   monster.skillCooldown = monster.type === 'creeper' ? 0 : 2.5;
   monster.charging = false;
+  monster.watched = false;
+  monster.leap = null;
   clearWarning(monster);
 }
 
@@ -33,6 +38,49 @@ function area(x, y, radius, floor, distance) {
     }
   }
   return cells;
+}
+
+function fireballCanCross(state, x, y) {
+  const tile = state.map[y]?.[x];
+  return tile === '.' || tile === '~';
+}
+
+function lavaLanding(state, x, y, px, py, distance) {
+  let best = null;
+  let shortest = distance(x, y, px, py);
+  for (const [dir, [dx, dy]] of Object.entries(STEP)) {
+    let gap = 0;
+    while (gap < 3 && state.map[y + (gap + 1) * dy]?.[x + (gap + 1) * dx] === '~') gap++;
+    if (gap === 0) continue;
+    const tx = x + (gap + 1) * dx, ty = y + (gap + 1) * dy;
+    if (state.map[ty]?.[tx] !== '.') continue;
+    const remaining = distance(tx, ty, px, py);
+    if (remaining < shortest) {
+      shortest = remaining;
+      best = { x: tx, y: ty, dir };
+    }
+  }
+  return best;
+}
+
+function lanternCells(x, y, dir, floor) {
+  const [dx, dy] = STEP[dir];
+  const cells = [];
+  for (let i = 1; i <= 3; i++) {
+    if (!floor(x + i * dx, y + i * dy)) break;
+    cells.push([x + i * dx, y + i * dy]);
+  }
+  return cells;
+}
+
+// A committed jump lands on the bank even if the player vanishes in mid-flight.
+function advanceLeap(monster, seconds) {
+  const leap = monster.leap;
+  leap.progress = Math.min(1, leap.progress + seconds / LEAP_SECONDS);
+  const [x, y] = leap.from, [tx, ty] = leap.to;
+  monster.x = x + (tx - x) * leap.progress;
+  monster.y = y + (ty - y) * leap.progress;
+  if (leap.progress >= 1) monster.leap = null;
 }
 
 function safeLanding(state, monster, x, y, distance) {
@@ -71,6 +119,16 @@ function resolveWarning(state, monster, index, spawn, distance) {
       break;
     case 'skeleton':
       state.effects.push({ type: 'arrow', x, y, dir: aim.dir, owner: index, remaining: 4 / 5 });
+      break;
+    case 'ghast':
+      state.effects.push({ type: 'fireball', x, y, dir: aim.dir, owner: index, remaining: FIREBALL_RANGE / FIREBALL_SPEED });
+      break;
+    case 'magma_cube':
+      monster.leap = { from: [x, y], to: [aim.x, aim.y], progress: 0 };
+      monster.dir = aim.dir;
+      break;
+    case 'pumpkin_guard':
+      state.effects.push({ type: 'lantern', x, y, cells, owner: index, remaining: 1.2 });
       break;
     case 'elder_guardian':
       state.effects.push({ type: 'pulse', x, y, cells, owner: index, remaining: 0.35 });
@@ -114,6 +172,23 @@ function startWarning(state, monster, index, floor, distance) {
       aim = { x: px, y: py, dir };
       break;
     }
+    case 'ghast': {
+      const dir = corridorDirection(x, y, px, py, FIREBALL_RANGE, (tx, ty) => fireballCanCross(state, tx, ty));
+      if (!dir) return;
+      aim = { x: px, y: py, dir };
+      break;
+    }
+    case 'magma_cube':
+      aim = lavaLanding(state, x, y, px, py, distance);
+      if (!aim) return;
+      break;
+    case 'pumpkin_guard': {
+      const dir = corridorDirection(x, y, px, py, 3, floor);
+      if (!dir) return;
+      aim = { x: px, y: py, dir };
+      monster.cells = lanternCells(x, y, dir, floor);
+      break;
+    }
     case 'enderman':
       if (range < 4) return;
       aim = teleportTarget(state, monster, floor, distance);
@@ -134,6 +209,10 @@ export function monsterSpeed(state, index, definition, seconds, floor, distance)
   const monster = state.monsters[index];
   const distracted = state.fear > 0 || state.invisible > 0 || monster.stun > 0;
   monster.skillCooldown = Math.max(0, monster.skillCooldown - seconds);
+  if (monster.leap) {
+    advanceLeap(monster, seconds);
+    return 0;
+  }
   if (distracted && monster.windup > 0) {
     clearWarning(monster);
     monster.skillCooldown = 1;
@@ -146,6 +225,12 @@ export function monsterSpeed(state, index, definition, seconds, floor, distance)
   }
 
   const x = Math.round(monster.x), y = Math.round(monster.y);
+  if (monster.type === 'ghost') {
+    const player = state.player;
+    monster.watched = !distracted && !!player.dir &&
+      corridorDirection(Math.round(player.x), Math.round(player.y), x, y, 6, floor) === player.dir;
+    if (monster.watched) return 0;
+  }
   if (!distracted && monster.skillCooldown === 0 && Math.hypot(monster.x - x, monster.y - y) < 0.05) {
     startWarning(state, monster, index, floor, distance);
     if (monster.windup > 0) return 0;
@@ -170,11 +255,14 @@ export function advanceEffects(state, seconds, floor) {
     if (state.invisible > 0 || state.fear > 0 || owner.stun > 0) return false;
     const dt = Math.min(seconds, effect.remaining);
     effect.remaining -= dt;
-    if (effect.type === 'arrow') {
-      const [dx, dy] = ARROW_STEP[effect.dir];
-      effect.x += dx * 5 * dt;
-      effect.y += dy * 5 * dt;
-      if (!floor(Math.round(effect.x), Math.round(effect.y))) return false;
+    if (effect.type === 'arrow' || effect.type === 'fireball') {
+      const [dx, dy] = STEP[effect.dir];
+      const fireball = effect.type === 'fireball';
+      const speed = fireball ? FIREBALL_SPEED : 5;
+      effect.x += dx * speed * dt;
+      effect.y += dy * speed * dt;
+      const x = Math.round(effect.x), y = Math.round(effect.y);
+      if (fireball ? !fireballCanCross(state, x, y) : !floor(x, y)) return false;
       if (!protectedPlayer && Math.hypot(effect.x - state.player.x, effect.y - state.player.y) < 0.42) {
         hit = true;
         return false;

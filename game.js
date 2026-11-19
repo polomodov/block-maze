@@ -1,6 +1,6 @@
-import { createGame } from './engine.js?v=parks-1';
-import { LEVELS } from './levels.js?v=parks-1';
-import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=parks-1';
+import { createGame } from './engine.js?v=realms-1';
+import { LEVELS } from './levels.js?v=realms-1';
+import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=realms-1';
 
 const byId = (id) => document.getElementById(id);
 const lobby = byId('lobby');
@@ -33,12 +33,18 @@ const monsters = {
   elder_guardian: { name: 'Древний страж', hint: 'Готовит волну, которая замедляет героя рядом. Отбеги, пока волна заряжается.' },
   witch: { name: 'Ведьма', hint: 'Оставляет лужи зелья. Обходи их, чтобы сохранить скорость.' },
   enderman: { name: 'Эндермен', hint: 'Предупреждает о прыжке и переносится поближе к тебе. Держи свободным путь для отхода.' },
+  ghast: { name: 'Гаст', hint: 'Целится и пускает огненный шар через лаву. Успей свернуть за угол.' },
+  magma_cube: { name: 'Магмовый куб', hint: 'Перепрыгивает через лаву. Уходи с отмеченной клетки на другом берегу.' },
+  ghost: { name: 'Призрак', hint: 'Замирает, когда ты смотришь прямо на него в коридоре. Отвернёшься — и он снова двинется.' },
+  pumpkin_guard: { name: 'Тыквенный страж', hint: 'Поднимает фонарь и освещает три клетки перед собой. Сверни за угол, чтобы свет тебя не замедлил.' },
 };
 const descriptions = {
   temple: 'Собери изумруды и ускользни от монстров.',
   arcade: 'Ищи изумруды между каруселью и горкой.',
   waterpark: 'Поверни вверх по стрелке у «Тайфуна» и съезжай на другую дорожку.',
   store: 'Ищи изумруды между комнатами с мебелью и стеллажами с коробками.',
+  nether: 'Переходи лаву по мостам и уворачивайся от огненных шаров.',
+  castle: 'Собери изумруды в замке до того, как тебя настигнет призрак.',
 };
 const directions = {
   ArrowUp: 'up', KeyW: 'up',
@@ -181,7 +187,9 @@ function updateScreen() {
     temple: ['Храм пройден!', 'Все изумруды собраны. Впереди карусель и горка!', 'В игровой центр'],
     arcade: ['Центр пройден!', 'Все изумруды собраны. Впереди водоворот «Тайфун»!', 'В аквапарк'],
     waterpark: ['Аквапарк пройден!', 'Изумруды собраны. Дальше ищи их в мебельном магазине.', 'В магазин'],
-    store: ['Победа!', 'Все изумруды магазина собраны (' + totalGems + ').', 'Сыграть ещё'],
+    store: ['Магазин пройден!', 'Впереди лава и мосты Нижнего мира.', 'В Нижний мир'],
+    nether: ['Нижний мир пройден!', 'Последние изумруды спрятаны в замке на Хеллоуин.', 'В замок'],
+    castle: ['Победа!', 'Все изумруды замка собраны (' + totalGems + ').', 'Сыграть ещё'],
   };
   const screens = {
     paused: ['Пауза', 'Лабиринт подождёт.', 'Продолжить'],
@@ -296,6 +304,7 @@ byId('help').addEventListener('click', () => {
   resumeAfterHelp = game?.state.status === 'playing';
   const levelId = game?.state.levelId ?? selectedValue('level');
   byId('waterpark-help').hidden = levelId !== 'waterpark';
+  byId('nether-help').hidden = levelId !== 'nether';
   const hints = LEVELS[levelId].monsters.map(({ type }) => {
     const item = document.createElement('li');
     const name = document.createElement('strong');
