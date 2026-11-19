@@ -1,7 +1,7 @@
 import { playGuitar, stopGuitar, performanceAge } from './guitar.js?v=encore-1';
 import { createGame } from './engine.js?v=monster-motion-1';
 import { LEVELS } from './levels.js?v=end-family-1';
-import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=monster-motion-1';
+import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=monster-motion-2';
 
 const byId = (id) => document.getElementById(id);
 const lobby = byId('lobby');

@@ -1,5 +1,5 @@
 import { drawPowerBehind, drawPowerFront, drawMonsterReaction, invisibleOpacity } from './maze-abilities.js?v=encore-1';
-import { drawMazeMonster } from './maze-monsters.js?v=monster-motion-1';
+import { drawMazeMonster } from './maze-monsters.js?v=monster-motion-2';
 import { performanceAge } from './guitar.js?v=encore-1';
 import { drawChordWave, drawGuitarist, danceFloor, dancerNotes } from './maze-music.js?v=encore-1';
 import { configureBoard } from './display.js';

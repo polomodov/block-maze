@@ -78,7 +78,13 @@ function humanoid(c,id,gait,dancing,bow,warp) {
     shape(c,'M.3 -18.2Q-.4 -20 .8 -20.3L1.6 -20.1 .9 -18Z','#697c43');
     shape(c,'M-1.9 -14.5L-.8 -16 0 -14.55ZM1.8 -14.6L2.75 -16.1 3.5 -14.65ZM-.9 -13.8L.25 -13.2 1.15 -13.75 2 -13.25 2.8 -13.7 2.25 -12.6 .15 -12.5Z','#552e36');
   }else if(dark) {
-    c.fillStyle='#ef91f9';c.fillRect(-2.1,-14.7,2.1,.84);c.fillRect(1.85,-14.7,1.7,.84);
+    // A fine violet edge keeps the black silhouette legible on the End's night floor.
+    shape(c,'M-4.3 -13.2L-4.3 -18.2 -2.7 -17.4 3.65 -17.4',null,warp?'#eab8ff':'#82708e',warp?.8:.5);
+    if (warp) {
+      shape(c,'M-3.65 -11.2L-3.65 -6.1 -2.05 -5.3M3.15 -9.8L3.15 -5.7',null,'#bc90ec',.66);
+      c.fillStyle='#9e65b5';c.fillRect(-2.65,-15.03,3.08,1.48);c.fillRect(1.32,-15.03,2.69,1.48);
+    }
+    c.fillStyle=warp?'#ffdcff':'#ef91f9';c.fillRect(-2.1,-14.7,2.1,.84);c.fillRect(1.85,-14.7,1.7,.84);
   }else{
     eyes(c,-1.25,-15.3,3.68,bone?'#373945':witch?'#ae436d':'#273638');
     c.fillStyle=face[2];c.fillRect(.25,-13.3,1.4,.7);
