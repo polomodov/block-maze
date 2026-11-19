@@ -1,4 +1,4 @@
-import { LEVELS } from './levels.js';
+import { LEVELS } from './levels.js?v=family-2';
 
 // Positions use tile centers as integer coordinates. All clocks use active game seconds.
 const STEPS = {

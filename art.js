@@ -1,4 +1,4 @@
-import { arcadeTile, drawArcadeLandscape, drawAttraction, drawRideLights } from './arcade-art.js';
+import { arcadeTile, drawArcadeLandscape, drawAttraction, drawRideLights } from './arcade-art.js?v=family-2';
 
 // The artwork is drawn on integer grids and scaled by the browser as pixel art.
 function surface(canvas, width, height) {

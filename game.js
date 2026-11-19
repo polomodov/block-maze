@@ -1,6 +1,6 @@
-import { createGame } from './engine.js';
-import { LEVELS } from './levels.js';
-import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js';
+import { createGame } from './engine.js?v=family-2';
+import { LEVELS } from './levels.js?v=family-2';
+import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=family-2';
 
 const byId = (id) => document.getElementById(id);
 const lobby = byId('lobby');
