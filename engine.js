@@ -22,7 +22,68 @@ function countdown(value, seconds) {
   return value <= seconds + 1e-8 ? 0 : value - seconds;
 }
 
-export function createGame(hero = 'kirill', levelId = 'temple') {
+const TIMERS = ['time', 'cooldown', 'invulnerable', 'levitation', 'slow', 'rideRemaining', 'boost', 'attack', 'fear', 'invisible'];
+const LIVE_FIELDS = [...TIMERS, 'lives', 'player', 'monsters', 'dragon', 'effects', 'blastBursts', 'lastPickup', 'solo', 'guitarStartedAt'];
+const direction = d => typeof d === 'string' && Object.hasOwn(STEPS, d);
+const numbers = (obj, ...keys) => obj && keys.every(k => Number.isFinite(obj[k]));
+const cellsAre = (cells, check) => Array.isArray(cells) && cells.every(check);
+const pick = (obj, keys) => Object.fromEntries(keys.map(k => [k, obj[k]]));
+
+function validProgress(p, state) {
+  if (!p || !TIMERS.every(k => Number.isFinite(p[k]) && p[k] >= 0) ||
+      !Number.isInteger(p.lives) || p.lives < 1 || p.lives > 3 ||
+      typeof p.waiting !== 'boolean' || !(p.queued === null || direction(p.queued)) ||
+      (p.rideRemaining > 0 && !state.ride)) return false;
+  const point = o => numbers(o, 'x', 'y') && o.x >= 0 && o.x < state.width && o.y >= 0 && o.y < state.height;
+  const tile = c => Array.isArray(c) && c.length >= 2 && c.slice(0, 2).every(Number.isInteger) && state.map[c[1]]?.[c[0]] === '.';
+  function validActor(a, airborne = false) {
+    if (!point(a) || !(a.dir === null || direction(a.dir))) return false;
+    if (a.target === null) return airborne || tile([a.x, a.y]);
+    if (!tile(a.target) || !direction(a.dir)) return false;
+    const [tx, ty] = a.target, [dx, dy] = STEPS[a.dir];
+    const distance = (tx - a.x) * dx + (ty - a.y) * dy;
+    return tile([tx - dx, ty - dy]) && Math.abs((tx - a.x) * dy - (ty - a.y) * dx) < 1e-6 &&
+      distance >= -1e-6 && distance <= 1 + 1e-6;
+  }
+  if (!validActor(p.player) || !Array.isArray(p.gems) || !p.gems.length ||
+      new Set(p.gems).size !== p.gems.length || !p.gems.every(id => state.gems.has(id))) return false;
+
+  function validMonster(m, i) {
+    if (!validActor(m, Boolean(m?.leap)) || m.type !== state.monsters[i].type ||
+        !numbers(m, 'stun', 'dance', 'skillCooldown', 'windup')) return false;
+    if (m.leap !== null && !(m.type === 'magma_cube' && tile(m.leap?.from) &&
+        tile(m.leap?.to) && numbers(m.leap, 'progress') && m.leap.progress >= 0 && m.leap.progress <= 1)) return false;
+    if (m.cells !== null && !cellsAre(m.cells, tile)) return false;
+    if (m.windup === 0) return m.aim === null;
+    if (!point(m.aim) || !tile([m.aim.x, m.aim.y])) return false;
+    if (['creeper', 'elder_guardian', 'wither_skeleton', 'pumpkin_guard'].includes(m.type) && !m.cells?.length) return false;
+    return ['creeper', 'elder_guardian', 'enderman'].includes(m.type) || direction(m.aim.dir);
+  }
+  if (!Array.isArray(p.monsters) || p.monsters.length !== state.monsters.length || !p.monsters.every(validMonster)) return false;
+  const area = ['blast', 'pulse', 'lantern', 'wither_slash'];
+  const projectiles = ['fireball', 'shulker_bolt', 'arrow', 'ember'];
+  if (!Array.isArray(p.effects) || !p.effects.every(e => point(e) && numbers(e, 'remaining') &&
+      (area.includes(e.type) ? cellsAre(e.cells, tile) : projectiles.includes(e.type) ? direction(e.dir) :
+        ['slow_pool', 'dragon_breath'].includes(e.type)))) return false;
+  if (!Array.isArray(p.blastBursts) || !p.blastBursts.every(b => point(b) && numbers(b, 'at') && cellsAre(b.cells, tile))) return false;
+  if (!(p.lastPickup === null || (point(p.lastPickup) && numbers(p.lastPickup, 'time'))) ||
+      !(p.guitarStartedAt === null || Number.isFinite(p.guitarStartedAt)) ||
+      !(p.solo === null || (point(p.solo) && numbers(p.solo, 'age', 'front', 'radius', 'speed') &&
+        cellsAre(p.solo.cells, c => tile(c) && Number.isInteger(c[2]))))) return false;
+  const d = p.dragon;
+  if (!state.dragon) return d === null;
+  return numbers(d, 'x', 'y', 'altitude', 'pitch', 'dive', 'age', 'cooldown', 'windup') &&
+    ['left','right'].includes(d.dir) && ['patrol','warning','dive','breathing','climb'].includes(d.phase) &&
+    cellsAre(d.cells, tile) && (d.phase === 'patrol' || numbers(d, 'fromX', 'fromY', 'entryX', 'entryY', 'passDirection')) &&
+    (['patrol','climb'].includes(d.phase) || d.cells.length > 0);
+}
+
+export function restoreGame(save) {
+  if (save?.version !== 1 || typeof save.level !== 'string' || !Object.hasOwn(LEVELS, save.level)) return null;
+  return createGame(save.hero, save.level, save);
+}
+
+export function createGame(hero = 'kirill', levelId = 'temple', save = null) {
   const state = {
     hero: ['kirill', 'maxim', 'mom', 'dad', 'pasha'].includes(hero) ? hero : 'kirill',
     status: 'ready', lives: 3, time: 0, cooldown: 0,
@@ -112,6 +173,32 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     resetPositions();
   }
   loadLevel(Object.hasOwn(LEVELS, levelId) ? levelId : 'temple');
+
+  if (save) {
+    const p = save.progress;
+    if (state.hero !== save.hero || !validProgress(p, state)) return null;
+    Object.assign(state, structuredClone(pick(p, LIVE_FIELDS)));
+    state.gems = new Set(p.gems);
+    state.collected = state.totalGems - state.gems.size;
+    state.status = 'paused';
+    queued = p.queued;
+    waiting = p.waiting;
+  }
+
+  function snapshot() {
+    if (!['playing', 'paused'].includes(state.status)) return null;
+    const progress = structuredClone(pick(state, LIVE_FIELDS));
+    return { version: 1, hero: state.hero, level: state.levelId,
+      progress: { ...progress, gems: [...state.gems], queued, waiting } };
+  }
+
+  function nextSnapshot() {
+    if (state.status !== 'won' || !level.next) return null;
+    const next = createGame(state.hero, level.next);
+    Object.assign(next.state, pick(state, ['time', 'lives', 'cooldown']));
+    next.start();
+    return next.snapshot();
+  }
 
   function turn(dir) {
     if (state.status !== 'playing' || !Object.hasOwn(STEPS, dir)) return;
@@ -346,7 +433,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
   }
 
   return {
-    state, turn, activate,
+    state, turn, activate, snapshot, nextSnapshot,
     nextLevel() {
       if (state.status !== 'won' || !level.next) return false;
       loadLevel(level.next);

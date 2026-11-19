@@ -1,5 +1,6 @@
 import { playGuitar, stopGuitar, performanceAge } from './guitar.js?v=encore-1';
-import { createGame } from './engine.js?v=dragon-flight-1';
+import { createGame, restoreGame } from './engine.js?v=offline-1';
+import { bindProgress, saveGame, clearSavedGame, addResult } from './progress.js';
 import { LEVELS } from './levels.js?v=end-family-1';
 import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=dragon-flight-1';
 
@@ -65,6 +66,7 @@ const directions = {
 let game;
 let frame;
 let previousTime;
+let lastSaveTime = 0;
 let swipe;
 let soundEnabled = false;
 let audio;
@@ -243,6 +245,13 @@ function updateScreen() {
   if (!help.open) resumeButton.focus({ preventScroll: true });
 }
 
+function saveRun() {
+  const snapshot = game?.snapshot();
+  if (!snapshot) return;
+  saveGame(snapshot);
+  lastSaveTime = game.state.time;
+}
+
 function animate(time) {
   if (game?.state.status !== 'playing') return;
   const { collected, lives: previousLives } = game.state;
@@ -257,9 +266,14 @@ function animate(time) {
   if (game.state.status !== 'playing') {
     stopGuitar();
     if (game.state.status === 'won') playNote(980, 0.3);
+    const { hero, levelId, collected, lives, status } = game.state;
+    addResult({ hero, level: levelId, gems: collected, lives, outcome: status });
+    const next = game.nextSnapshot();
+    if (next) saveGame(next);
     updateScreen();
     return;
   }
+  if (game.state.time - lastSaveTime >= 1 || game.state.lives < previousLives) saveRun();
   updateHud();
   drawBoard(board, game.state);
   frame = requestAnimationFrame(animate);
@@ -273,9 +287,8 @@ function run() {
   frame = requestAnimationFrame(animate);
 }
 
-function start(hero, levelId) {
-  game = createGame(hero, levelId);
-  game.start();
+function showArena() {
+  const { hero, levelId } = game.state;
   swipe = undefined;
   byId('solo-icon').hidden = hero !== 'pasha';
   document.title = LEVELS[levelId].title + ' · Блок Аркада';
@@ -284,8 +297,32 @@ function start(hero, levelId) {
   lobby.hidden = true;
   arena.hidden = false;
   window.scrollTo(0, 0);
+}
+
+function start(hero, levelId) {
+  game = createGame(hero, levelId);
+  game.start();
+  showArena();
+  saveRun();
   playNote(520, 0.13);
   run();
+}
+
+function resumeSavedGame(snapshot) {
+  const restored = restoreGame(snapshot);
+  if (!restored) {
+    clearSavedGame();
+    return false;
+  }
+  game = restored;
+  const { hero, levelId } = game.state;
+  document.querySelector(`input[name="hero"][value="${hero}"]`).checked = true;
+  document.querySelector(`input[name="level"][value="${levelId}"]`).checked = true;
+  saveSelection(hero, levelId);
+  showArena();
+  lastSaveTime = game.state.time;
+  updateScreen();
+  return true;
 }
 
 function pause() {
@@ -294,6 +331,7 @@ function pause() {
   stopGuitar();
   swipe = undefined;
   game.pause();
+  saveRun();
   updateScreen();
 }
 
@@ -311,6 +349,7 @@ function togglePause() {
 
 function activate() {
   if (game?.state.status !== 'playing' || !game.activate()) return;
+  saveRun();
   if (game.state.hero === 'dad') playBoo();
   else if (game.state.hero === 'mom') playNote(1046, 0.25, 'sine');
   else if (game.state.hero === 'pasha') {
@@ -348,12 +387,14 @@ resumeButton.addEventListener('click', () => {
     saveSelection(game.state.hero, game.state.levelId);
     document.title = LEVELS[game.state.levelId].title + ' · Блок Аркада';
     playNote(650, 0.2);
+    saveRun();
     run();
   } else {
     start(game.state.hero, game.state.levelId);
   }
 });
 byId('menu').addEventListener('click', () => {
+  saveRun();
   cancelAnimationFrame(frame);
   stopGuitar();
   document.querySelector(`input[name="level"][value="${game.state.levelId}"]`).checked = true;
@@ -387,6 +428,7 @@ help.addEventListener('close', () => {
   if (resumeAfterHelp && !document.hidden) resume();
   resumeAfterHelp = false;
 });
+window.addEventListener('pagehide', pause);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     resumeAfterHelp = false;
@@ -469,3 +511,4 @@ if (Object.hasOwn(LEVELS, requestedLevel)) {
 showLevelPreview();
 document.querySelectorAll('canvas[data-hero]').forEach((canvas) => drawPortrait(canvas, canvas.dataset.hero));
 displaySound();
+bindProgress({ onResume: resumeSavedGame });

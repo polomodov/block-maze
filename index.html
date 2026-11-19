@@ -38,7 +38,12 @@
     />
     <link rel="preload" as="image" href="./assets/hero-portraits.webp" />
     <link rel="stylesheet" href="./styles.css?v=studio-1" />
-    <script type="module" src="./game.js?v=dragon-flight-1"></script>
+    <script type="module" src="./game.js?v=offline-1"></script>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="apple-touch-icon" href="./assets/app-192.png">
+    <meta name="apple-mobile-web-app-title" content="Лабиринт">
+    <link rel="stylesheet" href="./offline.css">
+    <script type="module" src="./offline.js"></script>
   </head>
   <body>
     <header class="topbar">
@@ -207,6 +212,18 @@
           </aside>
         </div>
         <a class="sibling-game" href="https://games.polomodov.tech/block-jump/">Играть в платформер «Блок Прыжок» →</a>
+        <a class="sibling-game" href="https://games.polomodov.tech/block-playroom/">Открыть семейную игротеку →</a>
+        <section id="offline-tools" aria-label="Офлайн и сохранения">
+          <div class="offline-line">
+            <span id="offline-status" role="status">Подготовка к игре офлайн…</span>
+            <button type="button" id="offline-retry" hidden>Повторить загрузку</button>
+            <button type="button" id="install-game" hidden>Установить игру</button>
+          </div>
+          <button type="button" id="continue-saved" hidden>Продолжить партию</button>
+          <p id="save-notice" role="status" hidden>Не удалось сохранить партию в памяти устройства.</p>
+          <details><summary>История игр на этом устройстве</summary><ol id="game-history"></ol></details>
+          <details><summary>Как взять игру в дорогу</summary><p>Добавь игру на экран «Домой» через меню браузера. На iPhone открой «Поделиться» → «На экран Домой». Пока есть интернет, запусти игру с новой иконки и дождись надписи «Готово к игре офлайн».</p></details>
+        </section>
       </section>
       <section id="arena" hidden aria-label="Игра в лабиринте">
         <div class="arena-header">
