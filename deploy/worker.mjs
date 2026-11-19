@@ -1,5 +1,5 @@
 const defaultGame = '/block-maze/';
-const games = new Set(['block-maze', 'block-jump']);
+const games = new Set(['block-maze', 'block-jump', 'block-dash']);
 const origin = 'https://polomodov.github.io';
 
 export default {
