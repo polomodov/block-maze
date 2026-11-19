@@ -1,10 +1,11 @@
-import { arcadeTile, drawArcadeLandscape, drawAttraction, drawRideLights } from './arcade-art.js?v=realms-1';
-import { drawStoreLandscape, storeTile, drawStoreFixture, storeMonsterPixels, storeMonsterColors } from './store-art.js?v=realms-1';
-import { drawMonsterEffects, showCharge, showSlow } from './monster-art.js?v=realms-1';
-import { drawWaterparkLandscape, drawWaterRide, waterparkTile, waterRipples, drawRideAccess, riderPosition } from './waterpark-art.js?v=realms-1';
-
-import { drawNetherLandscape, netherTile, drawNetherFixture, drawNetherBridges, drawLavaFlow, netherMonsterPixels, netherMonsterColors } from './nether-art.js?v=realms-1';
-import { drawCastleLandscape, castleTile, drawCastleFixture, castleLights, castleMonsterPixels, castleMonsterColors } from './castle-art.js?v=realms-1';
+import { drawTempleFixture, templeFlames } from './temple-art.js?v=end-family-1';
+import { arcadeTile, drawArcadeLandscape, drawAttraction, drawRideLights } from './arcade-art.js?v=end-family-1';
+import { drawStoreLandscape, storeTile, drawStoreFixture, storeMonsterPixels, storeMonsterColors } from './store-art.js?v=end-family-1';
+import { drawMonsterEffects, showCharge, showSlow } from './monster-art.js?v=end-family-1';
+import { drawWaterparkLandscape, drawWaterRide, waterparkTile, waterRipples, drawRideAccess, riderPosition } from './waterpark-art.js?v=end-family-1';
+import { drawNetherLandscape, netherTile, drawNetherFixture, drawNetherBridges, drawLavaFlow, drawNetherThreats, netherMonsterPixels, netherMonsterColors } from './nether-art.js?v=end-family-1';
+import { drawCastleLandscape, castleTile, drawCastleFixture, castleLights, castleMonsterPixels, castleMonsterColors } from './castle-art.js?v=end-family-1';
+import { drawEndLandscape, endTile, drawEndFixture, drawEndThreats, drawFlyingDragon, endMonsterPixels, endMonsterColors, endermanColors } from './end-art.js?v=end-family-1';
 
 // The artwork is drawn on integer grids and scaled by the browser as pixel art.
 function surface(canvas, width, height) {
@@ -113,20 +114,56 @@ function temple(ctx, x, ground, scale) {
 }
 
 const levelArt = {
-  nether: { landscape: drawNetherLandscape, tile: netherTile, fixture: drawNetherFixture, bridges: drawNetherBridges, flow: drawLavaFlow },
+  temple: { landscape: drawTempleLandscape, tile: templeTile, fixture: drawTempleFixture, animate: templeFlames },
+  end: { landscape: drawEndLandscape, tile: endTile, fixture: drawEndFixture, threats: drawEndThreats },
+  nether: { landscape: drawNetherLandscape, tile: netherTile, fixture: drawNetherFixture, bridges: drawNetherBridges, flow: drawLavaFlow, threats: drawNetherThreats },
   castle: { landscape: drawCastleLandscape, tile: castleTile, fixture: drawCastleFixture, animate: castleLights },
   arcade: { landscape: drawArcadeLandscape, tile: arcadeTile, fixture: drawAttraction, animate: drawRideLights },
   waterpark: { landscape: drawWaterparkLandscape, tile: waterparkTile, fixture: drawWaterRide, animate: waterRipples },
   store: { landscape: drawStoreLandscape, tile: storeTile, fixture: drawStoreFixture },
 };
 
-export function drawLandscape(canvas, levelId = 'temple') {
-  const ctx = surface(canvas, 480, 100);
-  const theme = levelArt[levelId];
-  if (theme) {
-    theme.landscape(ctx);
+const worldSheet = './assets/world-panoramas.png?v=end-family-1';
+const realmSheet = './assets/realm-panoramas.png?v=end-family-1';
+const panoramaFrames = {
+  temple: [worldSheet, 0], arcade: [worldSheet, 1], waterpark: [worldSheet, 2], store: [worldSheet, 3],
+  nether: [realmSheet, 0], castle: [realmSheet, 1], end: [realmSheet, 2],
+};
+const images = new Map();
+const pendingFrames = new WeakMap();
+
+function illustratedFrame(canvas, path, col, row, width, height, placeholder) {
+  const ctx = surface(canvas, width, height);
+  let image = images.get(path);
+  if (!image) {
+    image = new Image();
+    image.src = new URL(path, import.meta.url);
+    images.set(path, image);
+  }
+  const paint = () => ctx.drawImage(image, col * width, row * height, width, height, 0, 0, width, height);
+  pendingFrames.delete(canvas);
+  if (image.complete && image.naturalWidth) {
+    paint();
     return;
   }
+  placeholder(ctx);
+  if (image.complete) return;
+  // Switching levels before an illustration arrives must keep the most recent selection.
+  pendingFrames.set(canvas, paint);
+  image.addEventListener('load', () => {
+    if (pendingFrames.get(canvas) !== paint) return;
+    pendingFrames.delete(canvas);
+    paint();
+  }, { once: true });
+}
+
+export function drawLandscape(canvas, levelId = 'temple') {
+  const [sheet, row] = panoramaFrames[levelId] || panoramaFrames.temple;
+  const theme = levelArt[levelId] || levelArt.temple;
+  illustratedFrame(canvas, sheet, 0, row, 480, 100, theme.landscape);
+}
+
+function drawTempleLandscape(ctx) {
   box(ctx, '#7ca6a2', 0, 0, 480, 100);
   box(ctx, '#8ab1a8', 0, 32, 480, 18);
   box(ctx, '#a8bba5', 0, 50, 480, 50);
@@ -167,236 +204,24 @@ export function drawLandscape(canvas, levelId = 'temple') {
   }
 }
 
-const parentBackdrops = {
-  mom: ['#9989b3','#8e7ca8','#796997','#6f648b','#555676','#b3a0c3'],
-  dad: ['#98aba3','#899e97','#798f85','#657e77','#516a65','#b0c1af'],
-};
-
-function portraitBackdrop(ctx, hero) {
-  const p = parentBackdrops[hero] || (hero === 'kirill' ? ['#75a8a2','#679996','#548684','#487470','#385f56','#82aaa1'] :
-    ['#b9a073','#ae9264','#9b825d','#867653','#6b6147','#c3ad7c']);
-  box(ctx,p[0],0,0,96,72);
-  box(ctx,p[5],56,7,40,2);
-  box(ctx,p[5],48,9,37,1);
-  shape(ctx,p[1],[[0,40],[18,25],[27,25],[36,20],[46,21],[63,38],[80,21],[96,24],[96,72],[0,72]]);
-  for (const [x,y,w,h] of [[0,37,16,35],[14,41,9,31],[17,45,12,27],[73,44,14,28],[86,36,10,36],[78,34,7,12]]) {
-    box(ctx,p[2],x,y,w,h);
-    box(ctx,p[3],x,y,w,2);
-  }
-  for (const [x,y,w,h] of [[0,48,12,8],[0,56,19,8],[5,64,19,8],[81,57,15,7],[85,50,11,7],[91,43,5,7]]) {
-    box(ctx,p[3],x,y,w,h);
-    box(ctx,p[2],x+1,y+1,w-2,1);
-    box(ctx,p[4],x,y+h-1,w,1);
-  }
-  for (const [x,y] of [[6,49],[12,58],[85,59],[0,67],[92,51]]) {
-    box(ctx,p[2],x,y,3,2);
-  }
-}
-
-// The parents have taller silhouettes and their own hairstyle, clothes and expressions.
-function drawParent(ctx, hero) {
-  const mom = hero === 'mom';
-  const edge = mom ? '#393448' : '#423d36';
-  const jacket = mom ? '#8868b3' : '#cb943d';
-  const light = mom ? '#b494d6' : '#efb654';
-  const shade = mom ? '#5c508a' : '#9d6e38';
-  const hair = mom ? '#75453b' : '#624537';
-  const darkHair = mom ? '#493342' : '#433b38';
-  const skin = '#e4ac80', skinLight = '#f2c599', skinShadow = '#be8768';
-  const r = (c, x, y, w, h) => box(ctx, c, x, y, w, h);
-  const poly = (color, vertices) => shape(ctx, color, vertices);
-  poly(edge, [[13,72],[14,58],[23,49],[36,44],[59,43],[74,48],[84,56],[87,72]]);
-  poly(shade, [[16,72],[17,57],[29,48],[60,46],[74,51],[82,58],[84,72]]);
-  poly(jacket, [[27,72],[27,55],[40,46],[56,46],[67,53],[68,72]]);
-  poly(light, [[16,58],[25,50],[33,47],[36,50],[27,55],[19,62]]);
-  poly(light, [[62,49],[67,48],[76,52],[73,54],[67,55]]);
-  poly(jacket, [[74,55],[79,55],[83,60],[84,69],[72,68]]);
-  r(shade, 24, 58, 2, 13);
-  r(light, 76, 60, 4, 2);
-  r(skinShadow, 38, 40, 18, 10);
-  r(skin, 38, 46, 13, 4);
-  if (mom) {
-    poly('#d9caeb', [[33,48],[39,45],[44,51],[51,48],[59,45],[60,50],[46,57],[36,54]]);
-    poly('#c3a9d9', [[44,55],[49,53],[56,61],[51,65]]);
-    r('#dac5e8', 50, 60, 3, 2);
-    // A braided bun and a lock of hair continue behind the far shoulder.
-    poly(darkHair, [[57,17],[61,7],[67,3],[75,4],[81,10],[81,19],[75,25],[72,38],[64,50],[58,50]]);
-    poly(hair, [[60,13],[64,7],[71,6],[77,9],[78,15],[72,20],[67,20]]);
-    r('#a46951', 66, 8, 6, 2);
-    poly('#d399b7', [[61,14],[66,15],[73,22],[70,24],[62,17]]);
-  } else {
-    poly('#b25142', [[33,47],[38,44],[46,49],[58,44],[64,48],[53,52],[44,57],[35,53]]);
-    poly('#d66750', [[43,53],[53,51],[49,60],[45,64]]);
-    r('#fa9471', 45, 54, 3, 2);
-    r(shade, 56, 60, 10, 7);
-    r(light, 56, 60, 10, 2);
-    r('#ffda8c', 61, 62, 2, 1);
-  }
-  poly(edge, [[27,13],[43,5],[56,5],[69,12],[69,34],[61,43],[51,48],[29,44],[26,38]]);
-  poly(skinShadow, [[51,19],[67,13],[67,34],[59,42],[51,46],[49,39]]);
-  poly(skin, [[28,17],[52,19],[52,43],[49,46],[30,42],[28,38]]);
-  poly(skinLight, [[29,23],[49,24],[49,36],[37,36],[36,39],[30,39]]);
-  poly(hair, [[27,13],[43,6],[55,6],[68,12],[53,22],[28,19]]);
-  poly(darkHair, [[52,20],[67,13],[67,26],[61,30],[58,26],[54,29],[52,28]]);
-  poly(skin, [[58,29],[64,26],[64,33],[59,36]]);
-  r(skinShadow, 60, 29, 2, 3);
-  if (mom) {
-    poly(hair, [[28,15],[41,10],[54,13],[54,18],[48,22],[38,22],[37,25],[30,25],[26,31],[25,26]]);
-    poly('#a96b50', [[29,17],[39,11],[48,9],[53,10],[43,13],[37,17]]);
-    poly(darkHair, [[52,20],[56,19],[56,30],[60,33],[63,29],[63,35],[59,39],[54,36]]);
-    r('#f5cd74', 61, 34, 2, 3);
-    r(darkHair, 29, 26, 7, 1);
-    r(darkHair, 43, 26, 6, 1);
-    r('#fff1df', 29, 29, 7, 4);
-    r('#fff1df', 43, 29, 7, 4);
-    r('#3d4244', 30, 29, 4, 3);
-    r('#3d4244', 44, 29, 4, 3);
-    r('#fff1df', 30, 29, 1, 1);
-    r('#fff1df', 44, 29, 1, 1);
-    r(skinShadow, 36, 33, 4, 2);
-    r('#c17b69', 30, 35, 4, 1);
-    r('#c17b69', 46, 35, 4, 1);
-    r('#a05b58', 35, 39, 9, 2);
-    r('#ffe8d5', 36, 39, 6, 1);
-  } else {
-    poly(hair, [[26,14],[27,10],[32,10],[33,6],[38,7],[46,4],[54,5],[64,10],[53,16],[45,16],[41,19],[35,19]]);
-    poly('#90735b', [[29,12],[37,7],[42,8],[35,12]]);
-    r('#978776', 61, 21, 5, 2);
-    // Thick square frames, an open smile and a short salt-and-pepper beard.
-    r(darkHair, 27, 25, 11, 7);
-    r(darkHair, 41, 25, 12, 7);
-    r(darkHair, 36, 26, 8, 2);
-    poly(darkHair, [[52,25],[64,22],[64,24],[52,27]]);
-    r('#f2d1a8', 29, 26, 7, 4);
-    r('#f2d1a8', 43, 26, 8, 4);
-    r(edge, 31, 27, 3, 3);
-    r(edge, 45, 27, 3, 3);
-    r('#fff0d4', 31, 27, 1, 1);
-    r('#fff0d4', 45, 27, 1, 1);
-    r(skinShadow, 37, 31, 4, 3);
-    poly(hair, [[29,34],[32,36],[34,38],[41,37],[48,37],[52,33],[57,31],[57,36],[52,44],[48,46],[32,43],[29,39]]);
-    r('#92745f', 31, 38, 2, 2);
-    r('#92745f', 48, 41, 3, 2);
-    r('#513b38', 35, 38, 10, 4);
-    r('#fff1d4', 35, 38, 9, 2);
-    r('#ba796a', 38, 41, 5, 1);
-  }
-}
+const portraitFrames = { kirill: [0, 0], maxim: [1, 0], mom: [0, 1], dad: [1, 1] };
 
 export function drawPortrait(canvas, hero) {
-  const ctx = surface(canvas,96,72);
-  const blue = hero === 'kirill';
-  portraitBackdrop(ctx,hero);
-  if (hero === 'mom' || hero === 'dad') {
-    drawParent(ctx,hero);
-    return;
-  }
-  const p = blue ? {
-    outline:'#1e3843',side:'#25426a',body:'#306eaa',light:'#559cd0',edge:'#81bad7',shirt:'#a0bdc3',
-    hair:'#63402a',hairLight:'#8b5b39',hairDark:'#493124',skin:'#e0ad7d',glow:'#f3c593',shade:'#bb8058'
-  } : {
-    outline:'#463b35',side:'#87472c',body:'#c56b36',light:'#ea964e',edge:'#ffc06a',shirt:'#d8b681',
-    hair:'#794428',hairLight:'#a66737',hairDark:'#513724',skin:'#e2a87c',glow:'#f6c696',shade:'#c4865e'
-  };
-  const r = (c,x,y,w,h)=>box(ctx,c,x,y,w,h);
-  const poly = (c,points)=>shape(ctx,c,points);
-  // A three-quarter view, with a jacket collar, separate sleeves and a cube-shaped head.
-  poly(p.outline,[[18,72],[18,57],[27,49],[40,46],[61,45],[76,50],[83,57],[83,72]]);
-  poly(p.side,[[20,58],[30,52],[64,48],[80,56],[80,72],[20,72]]);
-  poly(p.body,[[31,55],[42,49],[61,48],[70,53],[68,72],[29,72]]);
-  poly(p.light,[[21,56],[31,50],[39,48],[42,52],[33,57],[25,61],[21,61]]);
-  poly(p.body,[[20,59],[27,56],[28,65],[20,68]]);
-  poly(p.side,[[29,58],[33,55],[33,72],[27,72]]);
-  poly(p.light,[[63,50],[69,49],[77,52],[72,55],[66,55]]);
-  poly(p.body,[[72,55],[78,54],[81,57],[81,66],[72,68]]);
-  r(p.light,22,62,4,2);
-  r(p.edge,73,60,5,2);
-  poly(p.skin,[[21,69],[27,66],[27,72],[21,72]]);
-  poly(p.shade,[[73,69],[81,66],[81,72],[73,72]]);
-  poly(p.shirt,[[40,51],[54,51],[51,72],[42,72]]);
-  poly(p.light,[[36,51],[43,48],[46,54],[42,57]]);
-  poly(p.side,[[48,54],[59,47],[63,49],[54,58]]);
-  r(p.edge,37,60,2,10);
-  r(p.side,57,61,8,5);
-  r(p.light,57,61,8,2);
-  r(p.shade,41,42,12,9);
-  r(p.skin,41,48,9,3);
-  poly(p.outline,[[28,14],[47,6],[59,7],[71,13],[71,37],[63,45],[53,50],[29,47]]);
-  // Plane of the face and shadowed side with an inset ear.
-  poly(p.shade,[[54,20],[69,14],[69,37],[55,46],[51,42]]);
-  poly(p.skin,[[30,18],[55,21],[55,46],[52,48],[30,45]]);
-  poly(p.glow,[[31,23],[50,25],[50,39],[37,39],[37,43],[31,42]]);
-  poly(p.hair,[[29,15],[47,8],[58,8],[70,13],[54,23],[29,20]]);
-  poly(p.hairLight,[[31,15],[49,9],[57,10],[43,16],[43,18]]);
-  poly(p.hairDark,[[54,21],[69,14],[69,29],[63,33],[62,25],[58,28],[58,32],[54,32]]);
-  poly(p.hair,[[29,16],[55,20],[55,29],[49,28],[49,24],[43,24],[42,27],[38,27],[38,23],[30,22]]);
-  r(p.hairLight,32,17,7,2);
-  r(p.hairLight,43,19,6,2);
-  r(p.hairDark,31,22,5,2);
-  if (blue) {
-    poly(p.hair,[[32,18],[27,17],[27,14],[30,14],[30,11],[41,11],[48,8],[57,8],[52,12]]);
-    r(p.hairLight,31,12,7,2);
-  } else {
-    poly(p.hair,[[31,17],[30,10],[34,11],[34,7],[38,9],[41,6],[48,9],[57,7],[56,11],[45,15]]);
-    r(p.hairLight,36,10,4,2);
-    r(p.hairLight,46,10,6,1);
-  }
-  poly(p.skin,[[60,32],[65,29],[65,36],[60,39]]);
-  r(p.shade,61,33,2,3);
-  if (blue) {
-    // A knotted blue running band crosses the front and wraps around the side.
-    poly('#4d91bd',[[29,21],[55,24],[55,27],[29,24]]);
-    poly('#315e87',[[55,24],[69,18],[69,21],[55,27]]);
-    r('#96c7d3',31,22,8,1);
-    poly('#437da6',[[68,19],[72,18],[76,20],[72,22],[69,21]]);
-    poly('#315e87',[[69,21],[72,21],[74,25],[79,26],[75,28],[71,26]]);
-    r(p.hair,31,28,6,2);
-    r(p.hair,44,29,7,2);
-  } else {
-    // Maxim has a thick fringe and arched brows.
-    poly(p.hair,[[29,19],[39,20],[38,24],[34,24],[34,27],[31,27],[31,24],[29,24]]);
-    r(p.hairDark,31,28,4,2);
-    r(p.hairDark,35,29,3,2);
-    r(p.hairDark,44,29,4,2);
-    r(p.hairDark,48,28,3,2);
-  }
-  r('#fff1d0',31,31,6,4);
-  r('#fff1d0',45,32,6,4);
-  r(p.outline,33,31,3,4);
-  r(p.outline,46,32,3,4);
-  r('#fff7dd',33,31,1,1);
-  r('#fff7dd',46,32,1,1);
-  r(p.shade,39,36,4,2);
-  r(p.glow,39,35,3,2);
-  r(p.shade,35,40,3,1);
-  if (blue) {
-    r('#87553e',38,41,7,2);
-    r('#fff0d3',39,41,5,1);
-  } else {
-    r('#955838',37,41,8,1);
-    r('#955838',44,40,3,1);
-    r('#c18a63',32,38,1,1);
-    r('#c18a63',34,37,1,1);
-    r('#c18a63',49,39,2,1);
-    // A raised, leather-lined block glove belongs to the melee hero.
-    poly(p.outline,[[16,58],[19,54],[20,47],[24,44],[34,45],[38,48],[38,55],[36,59],[31,65],[20,64]]);
-    poly('#855330',[[18,58],[22,52],[36,53],[36,58],[30,63],[20,62]]);
-    poly('#ac6733',[[21,48],[25,45],[34,46],[37,49],[36,55],[31,58],[20,55]]);
-    poly('#e5a45d',[[21,48],[25,45],[34,46],[36,48],[32,51]]);
-    poly('#c8874d',[[21,49],[32,51],[32,56],[21,54]]);
-    r('#efbc79',23,49,2,3);
-    r('#ae713f',27,50,1,4);
-    r('#dac09a',20,57,10,2);
-    r('#f6d39d',22,57,3,1);
-    r('#4b4941',23,59,4,2);
-  }
-  r(p.glow,37,44,7,1);
+  const [col, row] = portraitFrames[hero];
+  illustratedFrame(canvas, './assets/hero-portraits.png?v=end-family-1', col, row, 192, 144, ctx => {
+    box(ctx, '#273d42', 0, 0, 192, 144);
+    ctx.save();
+    ctx.scale(8, 8);
+    sprite(ctx, hero, heroColors[hero], 4, 1);
+    ctx.restore();
+  });
 }
 
 const spritePixels = {
   ...storeMonsterPixels,
   ...netherMonsterPixels,
   ...castleMonsterPixels,
+  ...endMonsterPixels,
   guardian: [
     '........54......','...45...44..54..','...44qqqqqq445..','....q313331q4...',
     '.544q1131112q...','....q1666612q..2','..qqq6677611qq12','..q2q6677612q13q',
@@ -445,24 +270,30 @@ const spritePixels = {
     ' qLGGxxGGxxGGUq ',' qLGGxxGGxxGGUq ',' qLGGGGxGGGGGUq ',' qGGGGGGGGGuGUq ',
     ' qGuuGGuuuuuuuUq','  qUUuuuuuuUUUq ','   qqqqqqqqqqq  ','                '
   ],
+  maxim: [
+    '.....qhhhhq.....', '....qllhhhdq....', '...qlhhhhhhdq...', '...qhhffhhddq...',
+    '...qhffffffdq...', '...qhfofkfokq...', '...qkfwwffffq...', '....qkffkffkq...',
+    '...qttkfffstq...', '..qtjjtAtBjjq...', '..qsjqjABAjtq...', '..qfkqjBAtjkq...',
+    '...qqqjsAsjqq...', '.....qNnnnq.....', '....qNnqqNnq....', '....qssqqssq....',
+  ],
+  kirill: [
+    '................', '......qhhhq.....', '....qlllhhdq....', '...qlllhhhhdq...',
+    '...qlhhffffdq...', '...qhhffkffkq...', '...qhfowffokq...', '...qkfffffffq...',
+    '....qkffwwfkq...', '...qttkffftsq...', '..qtjtjtjjjsq...', '..qffqjjjjkfq...',
+    '...qqqjtsjsqq...', '.....qNnnnq.....', '.....qnqqNq.....', '....qssqqssq....',
+  ],
   mom: [
-    '     qqqqqq qq  ','    qhllhhqhlhq ','   qhllhhhhdhhq ','   qhhhffhhhdq  ',
-    '   qhfffffhddq  ','   qffowfofhkq  ','   qhffffffklq  ','    qfkffkfhdq  ',
-    '   qqqfffqqqq   ','  qjjjttttjjjq  ','  qjjjjtjsjsjq  ','  qffqjjtsqffq  ',
-    '   qqqjjjsqqq   ','     qnnnnq     ','    qnnqqnnq    ','    qqqqqqqq    '
+    '......qhhhqq....', '....qGgGGgGhq...', '...qhGgllGgdq...', '...qlhhhlhhdq...',
+    '...qhlfffhhdq...', '...qhfofkfokq...', '...qhkffffffq...', '....qdffwwfkq...',
+    '...qjttTATjjq...', '..qtjjATtAsjq...', '..qsjjstAjjsq...', '..qffqjTtjkfq...',
+    '...qqqjsAsjqq...', '.....qNnnnq.....', '....qNnqqNnq....', '....qssqqssq....',
   ],
   dad: [
-    '     qqqqqq     ','    qlhhhhhdq   ','   qlhhhhhdhq   ','   qhlhhhhhhdq  ',
-    '   qfffkfffldq  ','   qoowoooowoq  ','   qoffoffofkq  ','   qkhdffdhkq   ',
-    '   qqhhwwhdqq   ','  qjjjttttjjjq  ','  qjjjttjsjjtq  ','  qffqjtjsqffq  ',
-    '   qqqjjjsqqq   ','     qnnnnq     ','    qnnqqnnq    ','    qqqqqqqq    '
+    '.....qllhhdq....', '....qlffffhdq...', '...qlfffffffq...', '...qhfffffffkq..',
+    '...qffofkffokq..', '...qkffkhkffkq..', '...qhhllhhhlhq..', '...qhhlffkhlhq..',
+    '....qhhhhlhdq...', '...qttkhhktjsq..', '..qtjjtkstjjsq..', '..qfjqjtBjjsfq..',
+    '...qfqjjsjjsqq..', '....qqNnnnnqq...', '.....qNnqNnq....', '....qssqqsssq...',
   ],
-  hero: [
-    '     qqqqqq     ','    qhhhhhhq    ','   qhhllhhhdq   ','   qhhlhhhhhq   ',
-    '   qfhhffhhfq   ','   qffowfoffq   ','   qfffffffkq   ','    qfkffkfqq   ',
-    '   qqqfffqqqq   ','  qjjtkktjtjjq  ','  qjjjttjjsjtq  ','  qffqjjjsqffq  ',
-    '   qqqjjjsqqq   ','     qnnnnq     ','    qnnqqnnq    ','    qqqqqqqq    '
-  ]
 };
 
 const monsterColors = {
@@ -478,35 +309,119 @@ const monsterColors = {
 const creeperFlash = { q: '#485052', h: '#fff9cc', g: '#fff3af', d: '#eddfa3', o: '#807968' };
 
 const monsterPalettes = {
+  enderman: endermanColors,
   ghast: netherMonsterColors,
   magma_cube: netherMonsterColors,
+  blaze: netherMonsterColors,
+  wither_skeleton: netherMonsterColors,
+  shulker: endMonsterColors,
+  ender_dragon: endMonsterColors,
   ghost: castleMonsterColors,
   pumpkin_guard: castleMonsterColors,
 };
 
 const baseHeroColors = {
-  q:'#232d36', h:'#875135', l:'#b77c46', d:'#4e3a30', f:'#eeb789', o:'#293940',
-  w:'#fdf1d4', k:'#bc835d', n:'#465467'
+  q:'#272a32', f:'#f3c59e', o:'#423630', w:'#fff2db', k:'#c28a71', n:'#485569', N:'#718097',
 };
 
 const heroColors = {
-  kirill: { ...baseHeroColors, h:'#6d482f', j:'#4b91cd', t:'#a5cde4', s:'#336291' },
-  maxim: { ...baseHeroColors, j:'#e89345', t:'#ffd78c', s:'#b66039' },
-  mom: { ...baseHeroColors, h:'#75453b', l:'#a46951', j:'#aa81ca', t:'#e6c5ef', s:'#765b9d' },
-  dad: { ...baseHeroColors, h:'#624537', l:'#92745f', j:'#e3b24c', t:'#ed7761', s:'#a46f36' }
+  maxim: { ...baseHeroColors, h:'#493930', l:'#735844', d:'#382c2a', j:'#3c4149', t:'#686f7b', s:'#29303a', A:'#685d9c', B:'#e7e4f5' },
+  kirill: { ...baseHeroColors, h:'#846447', l:'#b79671', d:'#63503e', j:'#38b2af', t:'#83d9cc', s:'#287b83' },
+  mom: { ...baseHeroColors, h:'#634c3f', l:'#8e7057', d:'#413536', j:'#3a424a', s:'#293138', t:'#874458', T:'#bc576a', A:'#f2cea9', G:'#302d34', g:'#8b99a6' },
+  dad: { ...baseHeroColors, h:'#744937', l:'#94634a', d:'#50342d', j:'#314761', t:'#63809b', s:'#263546', B:'#a0b0bb' },
 };
 
-function sprite(ctx, name, colors, x, y, facingLeft=false) {
-  ctx.save();
-  ctx.translate(x+(facingLeft ? 16 : 0), y);
-  if (facingLeft) ctx.scale(-1,1);
-  spritePixels[name].forEach((row,dy) => {
-    for (let dx=0; dx<row.length; dx++) {
-      const c = colors[row[dx]];
-      if (c) box(ctx,c,dx,dy,1,1);
+// The hairline, shirt collar and scarf also read from behind when the player heads up.
+const heroBackPixels = {
+  maxim: [
+    '.....qhhhhq.....', '....qllhhhdq....', '...qlhhhhhhdq...', '...qlhhhhhdhq...',
+    '...qhhhhhhhdq...', '...qhdhhhhddq...', '...qkdhhhhdkq...', '....qkdhdhdkq...',
+    '...qtjttttjjq...', '..qtjtsssstjq...', '..qsjqjjjsjtq...', '..qfkqjjssjkq...',
+    '...qqqjjsjjqq...', ...spritePixels.maxim.slice(13),
+  ],
+  kirill: [
+    '................', '......qhhhq.....', '....qlllhhdq....', '...qlllhhhhdq...',
+    '...qlhhhhhhdq...', '...qhhhhhhhdq...', '...qhdhhhhddq...', '...qkdhhddhkq...',
+    '....qkdhdhdkq...', '...qtttjttjsq...', '..qtjtjjjjjsq...', '..qffqjjjjkfq...',
+    '...qqqjssjsqq...', ...spritePixels.kirill.slice(13),
+  ],
+  mom: [
+    '......qhhhqq....', '....qhGGGGGhq...', '...qGglllhhgq...', '...qlhlhhhdhq...',
+    '...qhhhhhhhdq...', '...qhlhhhdhdq...', '...qkhhhhdhkq...', '....qdhdhhdkq...',
+    '...qjtTTtTAjq...', '..qtjttTAtjsq...', '..qsjjjjjjjsq...', '..qffqjssjkfq...',
+    '...qqqjsjsjqq...', ...spritePixels.mom.slice(13),
+  ],
+  dad: [
+    '.....qllhhdq....', '....qlkffkhdq...', '...qlkkfffkhq...', '...qhhhlklhhhq..',
+    '...qhlhhhhhhhq..', '...qhhhhhhdhdq..', '...qkhhhhhhdkq..', '...qkdhdhhddkq..',
+    '....qddkkkddq...', '...qtttjjttjsq..', '..qtjsjjjjjjsq..', '..qfjqjjssjsfq..',
+    '...qfqjsjjjsqq..', ...spritePixels.dad.slice(13),
+  ],
+};
+
+const spriteSheets = new WeakMap();
+
+function spriteImage(name, colors, back) {
+  let sheet = spriteSheets.get(colors);
+  if (!sheet) {
+    sheet = new Map();
+    spriteSheets.set(colors, sheet);
+  }
+  const key = back ? name + '-back' : name;
+  if (sheet.has(key)) return sheet.get(key);
+  const image = document.createElement('canvas');
+  const rows = back ? heroBackPixels[name] : spritePixels[name];
+  const ctx = surface(image, Math.max(...rows.map(row => row.length)), 16);
+  for (const [y, row] of rows.entries()) {
+    for (let x = 0; x < row.length; x++) {
+      const ink = colors[row[x]];
+      if (ink) box(ctx, ink, x, y, 1, 1);
     }
-  });
+  }
+  sheet.set(key, image);
+  return image;
+}
+
+function sprite(ctx, name, colors, x, y, facingLeft = false, stride = 0, back = false) {
+  const image = spriteImage(name, colors, back);
+  ctx.save();
+  ctx.translate(x + (facingLeft ? 16 : 0), y);
+  if (facingLeft) ctx.scale(-1, 1);
+  if (stride) {
+    ctx.drawImage(image, 0, 0, image.width, 13, 0, -1, image.width, 13);
+    ctx.drawImage(image, 0, 13, 8, 3, 0, stride > 0 ? 12 : 13, 8, 3);
+    ctx.drawImage(image, 8, 13, 8, 3, 8, stride > 0 ? 13 : 12, 8, 3);
+  } else {
+    ctx.drawImage(image, 0, 0);
+  }
   ctx.restore();
+}
+
+function shulkerShell(ctx, monster, x, y) {
+  const image = spriteImage('shulker', endMonsterColors, false);
+  ctx.drawImage(image, 0, 7, 16, 9, x, y+7, 16, 9);
+  // Raising the lid exposes the eyes and gives the player a cue before the shot.
+  const lid = monster.windup > 0 ? -1 : 3;
+  ctx.drawImage(image, 0, 0, 16, 7, x, y+lid, 16, 7);
+  if (lid < 0) {
+    box(ctx,'#fff4bc',x+5,y+8,1,1);
+    box(ctx,'#fff4bc',x+10,y+8,1,1);
+  }
+}
+
+function walkFrame(actor) {
+  if (!actor.target) return 0;
+  const travel = actor.x + actor.y;
+  const midStep = travel - Math.floor(travel);
+  return midStep > .2 && midStep < .8 ? (Math.floor(travel) % 2 ? 1 : -1) : 0;
+}
+
+const walkers = new Set(['zombie', 'skeleton', 'wither_skeleton', 'drowned', 'enderman', 'pumpkin_guard']);
+
+function contactShadow(ctx, x, y, width = 12) {
+  const left = x - Math.floor(width / 2);
+  box(ctx, 'rgba(7,13,21,.4)', left, y + 6, width, 3);
+  box(ctx, 'rgba(7,13,21,.25)', left - 1, y + 7, width + 2, 1);
 }
 
 export function drawMonsterPortrait(canvas, type) {
@@ -532,9 +447,13 @@ function floorTile(ctx, x, y, roll) {
   }
 }
 
-function wallTile(ctx, state, col, row, variation) {
+function templeTile(ctx, map, col, row, tile, variation) {
+  if (map[row][col] !== '#') {
+    floorTile(ctx, col * tile, row * tile, variation);
+    return;
+  }
   const x = col*TILE, y=row*TILE;
-  const stone = (dx,dy)=>state.map[row+dy]?.[col+dx]==='#';
+  const stone = (dx,dy)=>map[row+dy]?.[col+dx]==='#';
   const above = stone(0,-1), below=stone(0,1), left=stone(-1,0), right=stone(1,0);
   const rand = randomSequence(617*variation + 13*col + row);
   const inset = left ? 0 : 1;
@@ -593,13 +512,15 @@ function background(canvas,state) {
   for (let row=0;row<state.height;row++) {
     for (let col=0;col<state.width;col++) {
       const variation = Math.floor(rand()*1031);
-      if (theme) {
-        theme.tile(ctx,state.map,col,row,TILE,variation);
-      } else if (state.map[row][col] === '#') {
-        wallTile(ctx,state,col,row,variation);
-      } else {
-        floorTile(ctx,col*TILE,row*TILE,variation);
-        if (state.map[row-1]?.[col]==='#') box(ctx,'#1a2a29',col*TILE,row*TILE,TILE,2);
+      theme.tile(ctx,state.map,col,row,TILE,variation);
+      if (state.map[row][col] === '.') {
+        // A short cast shadow anchors each wall to the floor and leaves the route clear.
+        const x = col * TILE, y = row * TILE;
+        if (state.map[row-1]?.[col] === '#') {
+          box(ctx,'rgba(10,15,26,.28)',x,y,TILE,2);
+          box(ctx,'rgba(10,15,26,.12)',x+1,y+2,TILE-1,1);
+        }
+        if (state.map[row][col-1] === '#') box(ctx,'rgba(10,15,26,.20)',x,y,2,TILE);
       }
     }
   }
@@ -610,15 +531,32 @@ function background(canvas,state) {
   return layer;
 }
 
-function emerald(ctx,x,y) {
-  box(ctx,'#192b28',x-2,y+3,5,2);
-  box(ctx,'#21694e',x-3,y-2,7,5);
-  box(ctx,'#30815e',x-2,y-3,5,7);
-  box(ctx,'#61c78c',x-2,y-2,5,4);
-  box(ctx,'#a9edac',x-1,y-3,3,2);
-  box(ctx,'#c7f6c9',x-2,y-1,2,2);
-  box(ctx,'#43aa77',x+1,y-1,2,3);
-  box(ctx,'#499363',x-1,y+2,3,1);
+function emerald(ctx, x, y, flare) {
+  box(ctx, '#152d30', x-3, y+3, 7, 2);
+  box(ctx, '#23423c', x-3, y-3, 7, 6);
+  box(ctx, '#184b46', x-4, y-1, 9, 3);
+  box(ctx, '#43c685', x-3, y-1, 7, 3);
+  box(ctx, '#8ae49c', x-2, y-3, 5, 2);
+  box(ctx, '#d4f9c3', x-2, y-2, 2, 3);
+  box(ctx, '#59db9a', x, y-1, 2, 4);
+  box(ctx, '#2a946e', x+2, y-1, 2, 3);
+  box(ctx, '#248160', x-2, y+2, 5, 1);
+  box(ctx, '#4eae7d', x-1, y+3, 3, 1);
+  if (flare) {
+    box(ctx, '#e6ffe1', x-3, y-2, 3, 1);
+    box(ctx, '#e6ffe1', x-2, y-3, 1, 3);
+  }
+}
+
+function pickupSpark(ctx, pickup, time) {
+  const age = time - pickup.time;
+  if (age >= .32) return;
+  const radius = 4 + Math.floor(age * 17);
+  const x = (pickup.x + .5) * TILE, y = (pickup.y + .5) * TILE;
+  const width = age < .15 ? 2 : 1;
+  for (const [dx,dy] of [[-1,-1],[1,-1],[-1,1],[1,1]]) {
+    box(ctx, age < .15 ? '#e0ffbd' : '#79db98', x + dx * radius, y + dy * radius, width, width);
+  }
 }
 
 function actorPos(actor) {
@@ -653,21 +591,33 @@ export function drawBoard(canvas,state) {
     for (const ride of state.decorations) animateRide(ctx,ride,TILE,state.time);
   }
   drawMonsterEffects(ctx,state);
+  theme?.threats?.(ctx,state,TILE);
+  const glint = Math.floor(state.time * 5);
   for (const index of state.gems) {
-    emerald(ctx,(index%state.width+0.5)*TILE,(Math.floor(index/state.width)+0.5)*TILE);
+    emerald(ctx,(index%state.width+0.5)*TILE,(Math.floor(index/state.width)+0.5)*TILE,(glint + index * 7) % 43 === 0);
   }
+  if (state.lastPickup) pickupSpark(ctx, state.lastPickup, state.time);
+  // Ground actors stay visible even when the dragon passes directly above them.
+  if (state.dragon) drawFlyingDragon(ctx,state,TILE);
   for (const monster of state.monsters) {
     const [x,y]=actorPos(monster);
-    box(ctx,'#172927',x-6,y+6,13,3);
+    contactShadow(ctx, x, y);
     const jumpPhase = state.time % .9;
     let hop = monster.type === 'slime' && !monster.stun && jumpPhase < .55
       ? Math.round(3 * Math.sin(Math.PI * jumpPhase / .55)) : 0;
     if (monster.leap) hop = Math.round(13 * Math.sin(Math.PI * monster.leap.progress));
-    if (monster.type === 'ghast') hop = 2 + Math.round(Math.sin(state.time * 3.5));
+    if (monster.type === 'ghast' || (monster.type === 'blaze' && !monster.stun)) {
+      hop = 2 + Math.round(Math.sin(state.time * 3.5));
+    }
     ctx.save();
     if (monster.watched) ctx.globalAlpha = .62;
     const palette = monsterPalettes[monster.type] || monsterColors;
-    sprite(ctx,monster.type,palette,x-8,y-8-hop,monster.dir==='left');
+    if (monster.type === 'shulker') {
+      shulkerShell(ctx, monster, x-8, y-8);
+    } else {
+      const stride = !monster.stun && walkers.has(monster.type) ? walkFrame(monster) : 0;
+      sprite(ctx,monster.type,palette,x-8,y-8-hop,monster.dir==='left',stride);
+    }
     ctx.restore();
     if (monster.type === 'creeper' && monster.windup > 0) {
       // Two warm pulses on the preparing creeper leave the surrounding board steady.
@@ -689,7 +639,7 @@ export function drawBoard(canvas,state) {
     }
   }
   const [x,y] = state.rideRemaining > 0 ? riderPosition(state,TILE) : actorPos(state.player);
-  box(ctx,'#192d29',x-6,y+6,13,3);
+  contactShadow(ctx, x, y, state.levitation > 0 ? 9 : 13);
   if (state.boost > 0) {
     const vector = {up:[0,1],down:[0,-1],left:[1,0],right:[-1,0]}[state.player.dir] || [-1,0];
     for (let n=0;n<3;n++) {
@@ -701,8 +651,9 @@ export function drawBoard(canvas,state) {
   ctx.save();
   if (state.invulnerable>0 && Math.floor(state.time*8)%2) ctx.globalAlpha=0.55;
   if (state.invisible > 0) ctx.globalAlpha = 0.42;
-  const model = state.hero === 'mom' || state.hero === 'dad' ? state.hero : 'hero';
-  sprite(ctx,model,heroColors[state.hero],x-8,y-8,state.player.dir==='left');
+  const lift = state.levitation > 0 ? 3 + Math.round(Math.sin(state.time * 8)) : 0;
+  const stride = lift || state.rideRemaining > 0 ? 0 : walkFrame(state.player);
+  sprite(ctx,state.hero,heroColors[state.hero],x-8,y-8-lift,state.player.dir==='left',stride,state.player.dir==='up');
   ctx.restore();
   if (state.invisible > 0) {
     const drift = Math.floor(state.time * 5) % 3;

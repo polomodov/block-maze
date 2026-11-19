@@ -1,6 +1,6 @@
 // All durations below use active game time. Warning targets stay fixed until the attack resolves.
-const PREPARATION = { creeper: 1, skeleton: 0.65, elder_guardian: 0.9, enderman: 0.9, ghast: 1, magma_cube: 0.65, pumpkin_guard: 1 };
-const RECOVERY = { creeper: 3, skeleton: 5, elder_guardian: 8, enderman: 8, ghast: 5, magma_cube: 3, pumpkin_guard: 6 };
+const PREPARATION = { creeper: 1, skeleton: 0.65, elder_guardian: 0.9, enderman: 0.9, ghast: 1, magma_cube: 0.65, pumpkin_guard: 1, blaze: 0.85, wither_skeleton: 0.7, shulker: 0.8 };
+const RECOVERY = { creeper: 3, skeleton: 5, elder_guardian: 8, enderman: 8, ghast: 5, magma_cube: 3, pumpkin_guard: 6, blaze: 6, wither_skeleton: 5, shulker: 4.5 };
 const STEP = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const FIREBALL_SPEED = 3.5;
 const FIREBALL_RANGE = 7;
@@ -63,10 +63,10 @@ function lavaLanding(state, x, y, px, py, distance) {
   return best;
 }
 
-function lanternCells(x, y, dir, floor) {
+function forwardCells(x, y, dir, range, floor) {
   const [dx, dy] = STEP[dir];
   const cells = [];
-  for (let i = 1; i <= 3; i++) {
+  for (let i = 1; i <= range; i++) {
     if (!floor(x + i * dx, y + i * dy)) break;
     cells.push([x + i * dx, y + i * dy]);
   }
@@ -86,7 +86,8 @@ function advanceLeap(monster, seconds) {
 function safeLanding(state, monster, x, y, distance) {
   const player = state.player;
   return distance(Math.round(player.x), Math.round(player.y), x, y) >= 2 &&
-    state.monsters.every(other => other === monster || Math.hypot(x - other.x, y - other.y) >= 1);
+    state.monsters.every(other => other === monster || (Math.hypot(x - other.x, y - other.y) >= 1 &&
+      !(other.type === 'enderman' && other.aim?.x === x && other.aim.y === y)));
 }
 
 function teleportTarget(state, monster, floor, distance) {
@@ -119,6 +120,17 @@ function resolveWarning(state, monster, index, spawn, distance) {
       break;
     case 'skeleton':
       state.effects.push({ type: 'arrow', x, y, dir: aim.dir, owner: index, remaining: 4 / 5 });
+      break;
+    case 'shulker':
+      state.effects.push({ type: 'shulker_bolt', x, y, dir: aim.dir, owner: index, remaining: 3, canTurn: true });
+      break;
+    case 'blaze':
+      for (const delay of [0, 0.45]) {
+        state.effects.push({ type: 'ember', x, y, dir: aim.dir, owner: index, delay, remaining: 5 / 4.5 });
+      }
+      break;
+    case 'wither_skeleton':
+      state.effects.push({ type: 'wither_slash', x, y, cells, owner: index, remaining: 0.35 });
       break;
     case 'ghast':
       state.effects.push({ type: 'fireball', x, y, dir: aim.dir, owner: index, remaining: FIREBALL_RANGE / FIREBALL_SPEED });
@@ -166,14 +178,16 @@ function startWarning(state, monster, index, floor, distance) {
       monster.cells = area(x, y, radius, floor, distance);
       break;
     }
-    case 'skeleton': {
-      const dir = corridorDirection(x, y, px, py, 4, floor);
+    case 'skeleton':
+    case 'shulker': {
+      const dir = corridorDirection(x, y, px, py, type === 'shulker' ? 6 : 4, floor);
       if (!dir) return;
       aim = { x: px, y: py, dir };
       break;
     }
-    case 'ghast': {
-      const dir = corridorDirection(x, y, px, py, FIREBALL_RANGE, (tx, ty) => fireballCanCross(state, tx, ty));
+    case 'ghast':
+    case 'blaze': {
+      const dir = corridorDirection(x, y, px, py, type === 'blaze' ? 5 : FIREBALL_RANGE, (tx, ty) => fireballCanCross(state, tx, ty));
       if (!dir) return;
       aim = { x: px, y: py, dir };
       break;
@@ -182,11 +196,13 @@ function startWarning(state, monster, index, floor, distance) {
       aim = lavaLanding(state, x, y, px, py, distance);
       if (!aim) return;
       break;
-    case 'pumpkin_guard': {
-      const dir = corridorDirection(x, y, px, py, 3, floor);
+    case 'pumpkin_guard':
+    case 'wither_skeleton': {
+      const reach = type === 'wither_skeleton' ? 2 : 3;
+      const dir = corridorDirection(x, y, px, py, reach, floor);
       if (!dir) return;
       aim = { x: px, y: py, dir };
-      monster.cells = lanternCells(x, y, dir, floor);
+      monster.cells = forwardCells(x, y, dir, reach, floor);
       break;
     }
     case 'enderman':
@@ -244,6 +260,34 @@ export function monsterSpeed(state, index, definition, seconds, floor, distance)
   return 1;
 }
 
+// The shulker bolt can make one right-angle turn at a tile center with a clear line of sight.
+function moveShulkerBolt(effect, travel, px, py, floor) {
+  const [dx, dy] = STEP[effect.dir];
+  const along = dx ? effect.x : effect.y;
+  const next = dx + dy > 0 ? Math.floor(along + 1e-9) + 1 : Math.ceil(along - 1e-9) - 1;
+  const toCenter = Math.abs(next - along);
+  if (effect.canTurn && travel >= toCenter) {
+    effect.x = Math.round(effect.x + dx * toCenter);
+    effect.y = Math.round(effect.y + dy * toCenter);
+    travel -= toCenter;
+    const dir = corridorDirection(effect.x, effect.y, px, py, 3, floor);
+    if (dir && (dx ? STEP[dir][1] : STEP[dir][0])) {
+      effect.dir = dir;
+      effect.canTurn = false;
+    }
+  }
+  const heading = STEP[effect.dir];
+  effect.x += heading[0] * travel;
+  effect.y += heading[1] * travel;
+}
+
+const PROJECTILES = {
+  arrow: { speed: 5, crossesLava: false },
+  fireball: { speed: FIREBALL_SPEED, crossesLava: true },
+  ember: { speed: 4.5, crossesLava: true },
+  shulker_bolt: { speed: 2.7, crossesLava: false },
+};
+
 export function advanceEffects(state, seconds, floor) {
   let hit = false;
   const protectedPlayer = state.invulnerable > 0 || state.rideRemaining > 0 ||
@@ -252,26 +296,42 @@ export function advanceEffects(state, seconds, floor) {
   state.effects = state.effects.filter(effect => {
     const owner = state.monsters[effect.owner];
     // A disarmed attack cannot resume in flight after invisibility, fear or stun expires.
-    if (state.invisible > 0 || state.fear > 0 || owner.stun > 0) return false;
-    const dt = Math.min(seconds, effect.remaining);
+    if (state.invisible > 0 || state.fear > 0 || owner?.stun > 0) return false;
+    let elapsed = seconds;
+    if (effect.delay > 0) {
+      const waiting = Math.min(elapsed, effect.delay);
+      effect.delay -= waiting;
+      elapsed -= waiting;
+      if (elapsed === 0) return true;
+    }
+    const dt = Math.min(elapsed, effect.remaining);
     effect.remaining -= dt;
-    if (effect.type === 'arrow' || effect.type === 'fireball') {
-      const [dx, dy] = STEP[effect.dir];
-      const fireball = effect.type === 'fireball';
-      const speed = fireball ? FIREBALL_SPEED : 5;
-      effect.x += dx * speed * dt;
-      effect.y += dy * speed * dt;
+    const projectile = PROJECTILES[effect.type];
+    if (projectile) {
+      const travel = dt * projectile.speed;
+      if (effect.type === 'shulker_bolt') {
+        moveShulkerBolt(effect, travel, px, py, floor);
+      } else {
+        const [dx, dy] = STEP[effect.dir];
+        effect.x += dx * travel;
+        effect.y += dy * travel;
+      }
       const x = Math.round(effect.x), y = Math.round(effect.y);
-      if (fireball ? !fireballCanCross(state, x, y) : !floor(x, y)) return false;
+      if (projectile.crossesLava ? !fireballCanCross(state, x, y) : !floor(x, y)) return false;
       if (!protectedPlayer && Math.hypot(effect.x - state.player.x, effect.y - state.player.y) < 0.42) {
-        hit = true;
+        if (effect.type === 'shulker_bolt') {
+          state.levitation = 1.5;
+          state.slow = Math.max(state.slow, state.levitation);
+        } else {
+          hit = true;
+        }
         return false;
       }
     } else if (!protectedPlayer) {
       const inside = effect.cells ? effect.cells.some(([x, y]) => x === px && y === py) :
         effect.x === px && effect.y === py;
       if (inside) {
-        if (effect.type === 'blast') hit = true;
+        if (effect.type === 'blast' || effect.type === 'dragon_breath') hit = true;
         else state.slow = effect.type === 'pulse' ? 1.8 : Math.max(state.slow, 1);
       }
     }

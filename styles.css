@@ -18,14 +18,23 @@
   box-sizing: border-box;
 }
 body {
+  --realm-ink: #d8eea7;
+  --realm-edge: #597a64;
+  --realm-dark: #293f35;
   margin: 0;
   background: var(--bg);
-  background-image: radial-gradient(#41545345 0.8px, transparent 0.9px);
-  background-size: 8px 8px;
+  background-image: linear-gradient(135deg, #31484438, transparent 42%), conic-gradient(at 2px 2px, transparent 75%, #4d66613b 0);
+  background-size: 100% 100%, 12px 12px;
   color: var(--ink);
   font: 1rem/1.45 var(--sans);
   min-height: 100svh;
 }
+body[data-level="arcade"] { --realm-ink: #ffcf9e; --realm-edge: #946773; --realm-dark: #4b3241; }
+body[data-level="waterpark"] { --realm-ink: #9aeee5; --realm-edge: #467e87; --realm-dark: #22484e; }
+body[data-level="store"] { --realm-ink: #f7d79a; --realm-edge: #99825a; --realm-dark: #4a402e; }
+body[data-level="nether"] { --realm-ink: #ffc093; --realm-edge: #a05b4e; --realm-dark: #4f302e; }
+body[data-level="castle"] { --realm-ink: #ffd29c; --realm-edge: #81688f; --realm-dark: #42334e; }
+body[data-level="end"] { --realm-ink: #e6c9ff; --realm-edge: #9074ad; --realm-dark: #42344e; }
 button {
   font: inherit;
   cursor: pointer;
@@ -160,6 +169,20 @@ main {
   height: 100%;
   z-index: -1;
 }
+.banner:before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  pointer-events: none;
+  --trim: linear-gradient(var(--realm-ink), var(--realm-ink));
+  background:
+    var(--trim) left top / 24px 2px, var(--trim) left top / 2px 12px,
+    var(--trim) right top / 24px 2px, var(--trim) right top / 2px 12px,
+    var(--trim) left bottom / 24px 2px, var(--trim) left bottom / 2px 12px,
+    var(--trim) right bottom / 24px 2px, var(--trim) right bottom / 2px 12px;
+  background-repeat: no-repeat;
+  opacity: 0.7;
+}
 .banner canvas {
   object-fit: cover;
   object-position: center 55%;
@@ -210,7 +233,7 @@ main {
 }
 .level-options {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   flex: 1;
 }
@@ -237,9 +260,10 @@ main {
   outline-offset: 2px;
 }
 .level-option:has(input:checked) {
-  color: var(--lime);
-  border-color: #adc968;
-  background: #2f3d2c;
+  color: var(--realm-ink);
+  border-color: var(--realm-edge);
+  background: var(--realm-dark);
+  box-shadow: inset 0 -3px var(--realm-edge);
 }
 .level-number {
   font: 0.63rem var(--pixel);
@@ -255,12 +279,18 @@ main {
 #lobby[data-level="nether"] #title-second { color: #ffad69; }
 #lobby[data-level="castle"] .banner { border-color: #786591; }
 #lobby[data-level="castle"] #title-second { color: #ffc088; }
+#lobby[data-level="end"] .banner { border-color: #8b75a5; }
+#lobby[data-level="end"] h1 { color: #e7d3ff; }
 #lobby[data-level="store"] .banner { border-color: #ac986b; }
 #lobby[data-level="store"] #title-second { color: #ffd183; }
-#lobby[data-level="store"] #monster-list {
+#lobby[data-level="store"] #monster-list,
+#lobby[data-level="nether"] #monster-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   row-gap: 10px;
+}
+#lobby[data-level="nether"] #monster-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .setup {
   display: grid;
@@ -287,6 +317,7 @@ p {
   gap: 12px;
 }
 .hero {
+  --hero-ink: #72cffa;
   position: relative;
   display: flex;
   min-width: 0;
@@ -296,6 +327,9 @@ p {
   cursor: pointer;
   box-shadow: 0 3px 0 #080f10;
 }
+.hero.maxim { --hero-ink: #ffb765; }
+.hero.mom { --hero-ink: #c9aaff; }
+.hero.dad { --hero-ink: #ffa895; }
 .hero:hover {
   border-color: #83938a;
 }
@@ -313,6 +347,14 @@ p {
   overflow: hidden;
   background: #283e46;
   border-bottom: 1px solid #4a5b56;
+}
+.portrait-frame:before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  box-shadow: inset 0 2px #fff6, inset 2px 0 #fff3, inset -2px 0 #13212459, inset 0 -3px #182b3280;
 }
 .portrait-frame canvas {
   width: 100%;
@@ -351,6 +393,8 @@ p {
   display: flex;
   flex-direction: column;
   gap: 7px;
+  border-top: 2px solid var(--hero-ink);
+  background: linear-gradient(115deg, #2c3a3b, #1c282b 75%);
 }
 .hero-copy strong {
   font: 400 0.99rem/1.4 var(--pixel);
@@ -522,8 +566,9 @@ p {
   text-align: center;
 }
 .monsters canvas {
-  background: #263332;
-  border: 1px solid #3d4d48;
+  background: linear-gradient(155deg, var(--realm-dark) 50%, #233033 50%);
+  border: 1px solid var(--realm-edge);
+  box-shadow: inset 0 2px #ffffff19, 0 2px #10191a;
   width: min(100%, 48px);
   aspect-ratio: 1;
   height: auto;
@@ -587,12 +632,36 @@ p {
   font-size: 0.94rem;
 }
 .hud {
+  position: relative;
   margin: 14px 0 8px;
-  padding: 10px 14px;
-  background: var(--panel);
-  border: 1px solid var(--border);
+  padding: 7px 14px 10px;
+  background: linear-gradient(105deg, var(--realm-dark), var(--panel) 50%);
+  border: 1px solid var(--realm-edge);
   font-size: 0.93rem;
 }
+.hud img,
+#hud-portrait {
+  image-rendering: pixelated;
+}
+#hud-portrait {
+  width: 29px;
+  height: 29px;
+  object-fit: cover;
+  border: 1px solid var(--realm-edge);
+}
+#gem-progress {
+  position: absolute;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  inset: auto 0 0;
+  border: 0;
+  background: #10211f;
+  color: #8de9a7;
+}
+#gem-progress::-webkit-progress-bar { background: #10211f; }
+#gem-progress::-webkit-progress-value { background: #8de9a7; }
+#gem-progress::-moz-progress-bar { background: #8de9a7; }
 .hud span {
   gap: 6px;
 }
@@ -600,12 +669,12 @@ p {
   font-variant-numeric: tabular-nums;
 }
 #hero-name {
-  color: var(--lime);
+  color: var(--realm-ink);
 }
 .board-wrap {
   position: relative;
   background: #0b1415;
-  border: 2px solid #67765c;
+  border: 2px solid var(--realm-edge);
   box-shadow: 0 4px 0 #080f10;
 }
 #board {
@@ -721,18 +790,18 @@ dialog .primary {
   .setup { display: block; }
   .guide { margin-top: 24px; }
   .guide-body {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr minmax(235px, 1.2fr) 0.65fr;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
   }
   .monsters { border: 0; }
   .monsters ul { gap: 12px; }
-  .monsters li { flex: none; }
   .monsters canvas { width: 40px; }
 }
 @media (min-width: 1120px) {
-  .level-options { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .level-options { grid-template-columns: 1.12fr 1.12fr 1fr 1.28fr 1.05fr 1.28fr 0.71fr; }
   .level-option { padding-inline: 5px; gap: 5px; }
 }
 @media (max-width: 770px) {
@@ -802,8 +871,12 @@ dialog .primary {
   .banner canvas {
     object-position: 63% center;
   }
+  #lobby:is([data-level="temple"], [data-level="waterpark"], [data-level="store"]) .banner canvas {
+    object-position: 74% center;
+  }
+  #lobby[data-level="arcade"] .banner canvas { object-position: 78% center; }
   .banner:after {
-    background: linear-gradient(90deg, #0d2022d9, transparent 95%);
+    background: linear-gradient(90deg, #0d2022df, #0d202299 38%, transparent 95%);
   }
   #lobby[data-level="waterpark"] .banner:after {
     background: linear-gradient(90deg, #062a34ef, #0a3242ba 50%, transparent);
@@ -818,9 +891,10 @@ dialog .primary {
   }
   .levels { display: block; padding: 8px; }
   .level-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .level-option:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .levels strong { position: absolute; clip-path: inset(50%); }
   #lobby[data-level="store"] #monster-list {
-    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   }
   .level-option {
     gap: 5px;
@@ -836,8 +910,7 @@ dialog .primary {
     gap: 9px;
   }
   .portrait-frame {
-    height: clamp(75px, 23vw, 118px);
-    aspect-ratio: auto;
+    aspect-ratio: 8 / 5;
   }
   .hero-copy {
     padding: 10px;
@@ -886,12 +959,16 @@ dialog .primary {
     padding: 6px 8px;
   }
   .hud {
-    padding: 8px;
+    padding: 6px 7px 9px;
     font-size: 0.78rem;
     gap: 5px;
   }
   .hud span {
     gap: 4px;
+  }
+  #hud-portrait {
+    width: 22px;
+    height: 22px;
   }
   .actions {
     gap: 6px;

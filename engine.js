@@ -1,5 +1,6 @@
-import { LEVELS } from './levels.js?v=realms-1';
-import { advanceEffects, monsterSpeed, resetSkill } from './monster-rules.js?v=realms-1';
+import { LEVELS } from './levels.js?v=end-family-1';
+import { advanceEffects, monsterSpeed, resetSkill } from './monster-rules.js?v=end-family-1';
+import { createDragon, flyDragon } from './dragon-rules.js?v=end-family-1';
 
 // Positions use tile centers as integer coordinates. All clocks use active game seconds.
 const STEPS = {
@@ -67,11 +68,14 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
 
   function resetPositions() {
     state.player = actor(level.start);
+    state.lastPickup = null;
     state.monsters = level.monsters.map(beast => ({
       ...actor(beast.start), type: beast.type, stun: 0,
     }));
     state.monsters.forEach(resetSkill);
+    state.dragon = level.dragon ? createDragon() : null;
     state.effects = [];
+    state.levitation = 0;
     state.slow = 0;
     state.rideRemaining = 0;
     state.boost = 0;
@@ -197,6 +201,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
   function collect(x, y) {
     if (!state.gems.delete(tileKey(x, y))) return;
     state.collected++;
+    state.lastPickup = { x, y, time: state.time };
     if (!state.gems.size) state.status = 'won';
   }
 
@@ -222,10 +227,12 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
         hitNearby();
         break;
       case 'mom':
+        state.levitation = 0;
         state.slow = 0;
         state.invisible = 4;
         break;
       case 'dad': {
+        state.levitation = 0;
         state.slow = 0;
         state.fear = 3;
         waiting = false;
@@ -248,6 +255,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     state.time += seconds;
     const speed = (state.boost > 0 ? 6.2 : 3.8) * (state.slow > 0 ? 0.65 : 1);
     state.slow = countdown(state.slow, seconds);
+    state.levitation = countdown(state.levitation, seconds);
     state.cooldown = countdown(state.cooldown, seconds);
     state.boost = countdown(state.boost, seconds);
     state.invulnerable = countdown(state.invulnerable, seconds);
@@ -274,12 +282,13 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
       }
     });
     if (state.attack > 0) hitNearby();
+    if (state.dragon) flyDragon(state, seconds, !waiting);
     const effectHit = advanceEffects(state, seconds, isFloor);
     state.attack = countdown(state.attack, seconds);
     state.invisible = countdown(state.invisible, seconds);
     state.fear = countdown(state.fear, seconds);
     if (waiting || state.rideRemaining > 0 || state.invulnerable > 0 || state.invisible > 0 || state.fear > 0) return;
-    const touched = state.monsters.some(monster => monster.type !== 'creeper' && !monster.leap && monster.stun === 0 &&
+    const touched = state.monsters.some(monster => monster.type !== 'shulker' && monster.type !== 'creeper' && !monster.leap && monster.stun === 0 &&
       Math.hypot(monster.x - state.player.x, monster.y - state.player.y) < 0.58);
     if (!touched && !effectHit) return;
     if (--state.lives === 0) {

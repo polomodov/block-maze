@@ -1,6 +1,6 @@
-import { createGame } from './engine.js?v=realms-1';
-import { LEVELS } from './levels.js?v=realms-1';
-import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=realms-1';
+import { createGame } from './engine.js?v=end-family-1';
+import { LEVELS } from './levels.js?v=end-family-1';
+import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=end-family-1';
 
 const byId = (id) => document.getElementById(id);
 const lobby = byId('lobby');
@@ -15,6 +15,7 @@ const soundButton = byId('sound');
 const help = byId('help-dialog');
 const lives = byId('lives');
 const gems = byId('gems');
+const gemProgress = byId('gem-progress');
 
 const heroes = {
   kirill: { name: 'Кирилл', action: 'Ускориться' },
@@ -35,8 +36,12 @@ const monsters = {
   enderman: { name: 'Эндермен', hint: 'Предупреждает о прыжке и переносится поближе к тебе. Держи свободным путь для отхода.' },
   ghast: { name: 'Гаст', hint: 'Целится и пускает огненный шар через лаву. Успей свернуть за угол.' },
   magma_cube: { name: 'Магмовый куб', hint: 'Перепрыгивает через лаву. Уходи с отмеченной клетки на другом берегу.' },
+  blaze: { name: 'Ифрит', hint: 'Пускает две искры подряд по одной дорожке. Спрячься за углом и пропусти обе.' },
+  wither_skeleton: { name: 'Скелет-иссушитель', hint: 'Бьёт мечом по двум клеткам перед собой. Удар замедляет тебя. Шагни в сторону, пока меч поднят.' },
   ghost: { name: 'Призрак', hint: 'Замирает, когда ты смотришь прямо на него в коридоре. Отвернёшься — и он снова двинется.' },
   pumpkin_guard: { name: 'Тыквенный страж', hint: 'Поднимает фонарь и освещает три клетки перед собой. Сверни за угол, чтобы свет тебя не замедлил.' },
+  shulker: { name: 'Шалкер', hint: 'Сидит в раковине и пускает медленный шар. Шар может один раз повернуть за тобой и замедлит тебя при попадании.' },
+  ender_dragon: { name: 'Дракон Края', hint: 'Летает над стенами и выдыхает фиолетовые облака. Возвращайся за изумрудами, когда облака рассеются.' },
 };
 const descriptions = {
   temple: 'Собери изумруды и ускользни от монстров.',
@@ -45,6 +50,7 @@ const descriptions = {
   store: 'Ищи изумруды между комнатами с мебелью и стеллажами с коробками.',
   nether: 'Переходи лаву по мостам и уворачивайся от огненных шаров.',
   castle: 'Собери изумруды в замке до того, как тебя настигнет призрак.',
+  end: 'Собирай изумруды между налётами дракона Края.',
 };
 const directions = {
   ArrowUp: 'up', KeyW: 'up',
@@ -137,17 +143,24 @@ function selectedValue(group) {
   return document.querySelector(`input[name="${group}"]:checked`).value;
 }
 
+function monsterTypes(level) {
+  const types = new Set(level.monsters.map(({ type }) => type));
+  if (level.dragon) types.add(level.dragon);
+  return [...types];
+}
+
 function showLevelPreview() {
   const levelId = selectedValue('level');
   const level = LEVELS[levelId];
   const [first, ...rest] = level.title.toUpperCase().split(' ');
   lobby.dataset.level = levelId;
+  document.body.dataset.level = levelId;
   setText(byId('title-first'), first);
   setText(byId('title-second'), rest.join(' '));
   setText(byId('level-description'), descriptions[levelId]);
   document.title = level.title + ' · Блок Аркада';
   drawLandscape(byId('landscape'), levelId);
-  const portraits = level.monsters.map(({ type }) => {
+  const portraits = monsterTypes(level).map((type) => {
     const item = document.createElement('li');
     const canvas = document.createElement('canvas');
     canvas.dataset.monster = type;
@@ -163,6 +176,8 @@ function updateHud() {
   const state = game.state;
   setText(lives, state.lives);
   setText(gems, state.collected + ' / ' + state.totalGems);
+  if (gemProgress.max !== state.totalGems) gemProgress.max = state.totalGems;
+  if (gemProgress.value !== state.collected) gemProgress.value = state.collected;
   const cooldown = Math.ceil(state.cooldown);
   const action = heroes[state.hero].action;
   let abilityLabel = cooldown > 0 ? action + ' · ' + cooldown + ' с' : action;
@@ -174,6 +189,7 @@ function updateHud() {
 
 function updateScreen() {
   const { status, totalGems, levelId } = game.state;
+  document.body.dataset.level = levelId;
   setText(byId('arena-title'), LEVELS[levelId].title);
   const paused = status === 'paused';
   const finished = status === 'won' || status === 'lost';
@@ -188,8 +204,9 @@ function updateScreen() {
     arcade: ['Центр пройден!', 'Все изумруды собраны. Впереди водоворот «Тайфун»!', 'В аквапарк'],
     waterpark: ['Аквапарк пройден!', 'Изумруды собраны. Дальше ищи их в мебельном магазине.', 'В магазин'],
     store: ['Магазин пройден!', 'Впереди лава и мосты Нижнего мира.', 'В Нижний мир'],
-    nether: ['Нижний мир пройден!', 'Последние изумруды спрятаны в замке на Хеллоуин.', 'В замок'],
-    castle: ['Победа!', 'Все изумруды замка собраны (' + totalGems + ').', 'Сыграть ещё'],
+    nether: ['Нижний мир пройден!', 'Следующие изумруды спрятаны в замке на Хеллоуин.', 'В замок'],
+    castle: ['Замок пройден!', 'Впереди Край. Над лабиринтом уже кружит дракон!', 'В Край'],
+    end: ['Край пройден!', 'Все изумруды последнего уровня у тебя. Победа!', 'Сыграть ещё'],
   };
   const screens = {
     paused: ['Пауза', 'Лабиринт подождёт.', 'Продолжить'],
@@ -236,6 +253,7 @@ function start(hero, levelId) {
   swipe = undefined;
   document.title = LEVELS[levelId].title + ' · Блок Аркада';
   setText(byId('hero-name'), heroes[hero].name);
+  drawPortrait(byId('hud-portrait'), hero);
   lobby.hidden = true;
   arena.hidden = false;
   window.scrollTo(0, 0);
@@ -305,7 +323,8 @@ byId('help').addEventListener('click', () => {
   const levelId = game?.state.levelId ?? selectedValue('level');
   byId('waterpark-help').hidden = levelId !== 'waterpark';
   byId('nether-help').hidden = levelId !== 'nether';
-  const hints = LEVELS[levelId].monsters.map(({ type }) => {
+  byId('end-help').hidden = levelId !== 'end';
+  const hints = monsterTypes(LEVELS[levelId]).map((type) => {
     const item = document.createElement('li');
     const name = document.createElement('strong');
     name.textContent = monsters[type].name;

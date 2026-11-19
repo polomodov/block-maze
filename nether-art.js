@@ -1,6 +1,4 @@
 // Volcanic rock is drawn in cool violets so the walkways stand apart from the molten river.
-const basalt = '#524554';
-const basaltLight = '#887283';
 const basaltDark = '#332e3a';
 const lava = '#ef7838';
 const ember = '#ffab49';
@@ -29,42 +27,63 @@ function polygon(ctx, color, points) {
 }
 
 function pillar(ctx, x, bottom, w, h) {
-  const y = bottom - h;
-  rect(ctx, basaltDark, x, y + 2, w, h - 2);
-  rect(ctx, basalt, x + 1, y, w - 3, h - 2);
-  rect(ctx, '#695663', x + 2, y + 1, Math.max(1, Math.floor(w / 3)), h - 3);
-  rect(ctx, basaltLight, x + 1, y, w - 3, 2);
-  rect(ctx, '#4b3f4b', x + Math.floor(w / 2), y + 5, 1, h - 6);
-  rect(ctx, '#8d605c', x + 1, bottom - 3, Math.floor(w / 2), 1);
+  const y = bottom - h, mid = x + Math.floor(w * .57);
+  // A six-sided broken column, lit from the upper left and from the hot ground below.
+  polygon(ctx, basaltDark, [[x,y+3],[x+3,y],[mid,y-1],[x+w,y+2],[x+w,bottom-1],[mid,bottom+2],[x,bottom-1]]);
+  rect(ctx, '#6b596a', x + 1, y + 3, mid-x-1, h-4);
+  rect(ctx, '#453b50', mid, y + 3, w-(mid-x)-1, h-3);
+  rect(ctx, '#93758a', x+1, y+3, 2, h-7);
+  polygon(ctx,'#89798b',[[x,y+2],[x+3,y],[mid,y-1],[x+w,y+2],[mid,y+4],[x+2,y+3]]);
+  rect(ctx, '#ad8b99', x+3, y, Math.max(2,mid-x-2),1);
+  for (let n = 7; n < h-2; n += 7) {
+    rect(ctx,'#564554',x+2,y+n,Math.max(2,mid-x-3),1);
+    rect(ctx,'#775d6d',mid-1,y+n+1,2,1);
+  }
+  rect(ctx, '#985f5a', x+2, bottom-3, Math.max(2,mid-x-1),2);
+  rect(ctx, '#ad735e', mid, bottom-2,2,1);
 }
 
 function basaltSpire(ctx) {
-  pillar(ctx, 6, 42, 12, 21);
-  pillar(ctx, 16, 41, 13, 29);
-  pillar(ctx, 28, 39, 13, 36);
-  pillar(ctx, 40, 43, 12, 25);
-  pillar(ctx, 50, 43, 11, 17);
-  pillar(ctx, 22, 46, 11, 20);
-  pillar(ctx, 34, 46, 14, 12);
-  for (const [x,y] of [[8,44],[18,43],[45,44],[59,42]]) rect(ctx, ember, x, y, 3, 1);
+  pillar(ctx, 6, 39, 10, 17);
+  pillar(ctx, 14, 38, 12, 25);
+  pillar(ctx, 27, 39, 13, 35);
+  pillar(ctx, 41, 41, 12, 24);
+  pillar(ctx, 50, 42, 10, 15);
+  pillar(ctx, 20, 43, 11, 18);
+  pillar(ctx, 32, 44, 13, 13);
+  // Quartz grows in the sheltered notch where the columns have fractured.
+  for (const [x,y,h] of [[16,43,5],[19,42,8],[47,42,7],[50,42,4]]) {
+    polygon(ctx,'#a889aa',[[x-2,y],[x-2,y-3],[x,y-h],[x+2,y-2],[x+2,y]]);
+    rect(ctx,'#e4c4ca',x,y-h+2,1,h-3);
+  }
+  rect(ctx,'#d88b66',7,40,3,1);
 }
 
 function lavaFalls(ctx) {
-  pillar(ctx, 4, 43, 14, 19);
-  pillar(ctx, 14, 39, 15, 31);
-  pillar(ctx, 28, 39, 15, 35);
-  pillar(ctx, 41, 42, 13, 24);
-  pillar(ctx, 52, 43, 10, 15);
-  rect(ctx, '#ac493d', 21, 9, 20, 28);
-  rect(ctx, lava, 22, 9, 17, 27);
-  rect(ctx, '#fc8c3d', 24, 11, 8, 28);
-  rect(ctx, ember, 23, 10, 3, 23);
-  rect(ctx, glow, 22, 9, 16, 1);
-  rect(ctx, '#ffd36c', 33, 11, 2, 16);
-  polygon(ctx, '#cb543b', [[20,34],[39,33],[44,38],[60,39],[64,44],[51,47],[7,45],[4,42],[17,37]]);
-  polygon(ctx, lava, [[20,35],[36,35],[45,40],[58,41],[56,43],[16,43],[12,41]]);
-  rect(ctx, '#ffd067', 20, 36, 12, 2);
-  rect(ctx, '#ffb74c', 37, 41, 11, 1);
+  pillar(ctx, 4, 40, 13, 16);
+  pillar(ctx, 11, 36, 16, 27);
+  pillar(ctx, 27, 37, 16, 32);
+  pillar(ctx, 42, 39, 12, 21);
+  pillar(ctx, 53, 41, 8, 12);
+  polygon(ctx,'#562f3c',[[18,10],[22,6],[37,6],[42,10],[41,16],[20,17]]);
+  polygon(ctx,'#bb5545',[[20,11],[24,8],[37,8],[40,10],[38,14],[22,15]]);
+  polygon(ctx,'#ffb249',[[19,12],[23,10],[38,10],[40,11],[37,14],[23,15]]);
+  polygon(ctx,'#f57a38',[[20,12],[38,12],[37,21],[39,34],[43,37],[19,37],[21,30]]);
+  rect(ctx,'#ff9b3f',23,13,5,20);
+  rect(ctx,'#ffda77',24,13,2,9);
+  rect(ctx,'#e35b36',28,14,3,13);
+  rect(ctx,'#c74836',36,14,2,19);
+  rect(ctx,'#ffc260',33,17,2,10);
+  rect(ctx,'#ffb448',24,26,2,10);
+  rect(ctx,'#ffdf78',32,30,2,5);
+  polygon(ctx,'#733e44',[[15,34],[40,33],[45,37],[58,39],[64,43],[55,46],[10,46],[4,43]]);
+  polygon(ctx,'#cc5b37',[[19,35],[40,35],[46,39],[58,40],[60,43],[52,45],[13,44],[9,42]]);
+  polygon(ctx,'#fb8c3c',[[21,35],[38,35],[41,38],[50,40],[48,42],[16,42],[13,40]]);
+  rect(ctx,'#ffce63',20,36,16,2);
+  rect(ctx,'#fff0a0',24,36,6,1);
+  rect(ctx,'#ffad4c',32,41,13,1);
+  rect(ctx,'#fab35a',55,43,4,1);
+  for (const [x,y] of [[17,30],[44,31],[13,36]]) rect(ctx, '#ffc269', x,y,1,2);
 }
 
 function fungus(ctx, x, base, size) {
@@ -90,10 +109,22 @@ function fungus(ctx, x, base, size) {
 }
 
 function fungalGrove(ctx) {
-  fungus(ctx, 45, 38, .8);
-  fungus(ctx, 22, 43, 1.2);
-  fungus(ctx, 51, 46, .42);
-  fungus(ctx, 8, 46, .32);
+  for (const [x,y] of [[7,39],[13,34],[35,37],[57,38]]) {
+    rect(ctx,'#66404b',x,y,1,5);
+    rect(ctx,'#cc7167',x-1,y,3,1);
+  }
+  fungus(ctx, 45, 36, .78);
+  fungus(ctx, 23, 42, 1.15);
+  fungus(ctx, 51, 44, .42);
+  fungus(ctx, 8, 44, .30);
+  for (const [x,y,n] of [[13,17,3],[23,13,4],[29,15,3],[40,16,2],[48,16,2]]) {
+    rect(ctx,'#e88568',x-1,y-1,n+2,3);
+    rect(ctx,'#ffd083',x,y,n,1);
+  }
+  for (const [x,y] of [[15,25],[27,29],[32,26],[42,24],[38,27]]) {
+    rect(ctx,'#8f5866',x,y,1,2);
+    rect(ctx,'#f5ad77',x,y+2,1,1);
+  }
 }
 
 function archBridge(ctx) {
@@ -182,28 +213,87 @@ export function drawNetherLandscape(ctx) {
 export function netherTile(ctx, map, x, y, tile, seed) {
   const px = x * tile, py = y * tile, t = map[y][x];
   if (t === '~') {
-    rect(ctx, '#bb4b34', px, py, tile, tile);
-    rect(ctx, '#de6737', px + seed % 6, py + 3, 12, 3);
-    rect(ctx, '#d75b35', px + 4, py + 12, 14, 2);
-    rect(ctx, '#ef8b42', px + seed % 9, py + 5, 6, 1);
-    if (map[y - 1]?.[x] !== '~') rect(ctx, '#8c3b38', px, py, tile, 2);
+    // Each band runs through neighboring tiles, so the molten river has a single current.
+    rect(ctx, '#c05239', px, py, tile, tile);
+    const west = map[y][x-1] !== '~', east = map[y][x+1] !== '~';
+    for (let r = 0; r < tile; r += 2) {
+      const turn = Math.round(2.5*Math.sin((py+r)*.14) + 1.5*Math.sin((py+r)*.27));
+      const streak = (px+py+r*2) % 17;
+      if (west) {
+        rect(ctx, '#873e3b', px, py+r, Math.max(0,4+turn), 2);
+        rect(ctx, '#e1703c', px+4+turn, py+r, 2, 2);
+        rect(ctx, '#e9773a', px+13+turn, py+r, tile-13-turn, 2);
+      }
+      if (east) {
+        rect(ctx, '#e9773a', px, py+r, 5+turn, 2);
+        rect(ctx, '#db6739', px+tile-6+turn, py+r, 3, 2);
+        rect(ctx, '#983f39', px+tile-3+turn, py+r, Math.max(0,3-turn), 2);
+      }
+      if (streak < 4) rect(ctx, '#f49347', px+5+streak, py+r, 4, 1);
+    }
+    if (seed % 3 === 0) {
+      // A little dark crust floats in the hot center, with a luminous trailing rim.
+      const bx = px + (west ? 12 : 2), by = py+5+seed%6;
+      rect(ctx, '#fd9e47', bx-1,by,7,3);
+      rect(ctx, '#e5793e', bx+1,by-1,3,1);
+      rect(ctx, '#b2593f', bx,by,5,2);
+      rect(ctx, '#903f3b', bx+1,by,3,1);
+      rect(ctx, '#ffd17c', bx+2,by+2,3,1);
+    }
+    if (map[y - 1]?.[x] !== '~') rect(ctx, '#813f3f', px, py, tile, 2);
     return;
   }
   if (t === '.') {
-    rect(ctx, (x + y) % 2 ? '#392f3b' : '#3b303c', px, py, tile, tile);
-    if (seed % 3 === 0) rect(ctx, '#50404a', px + 5, py + 6, 4, 1);
+    rect(ctx, ['#322b36','#352c37','#342d38'][seed % 3], px, py, tile, tile);
+    rect(ctx,'#2b2833',px,py+tile-1,tile,1);
+    if (seed % 3 === 0) {
+      rect(ctx,'#463644',px+3,py+12,5,1);
+      rect(ctx,'#423340',px+7,py+11,4,1);
+    }
+    // Warm light runs along each lava bank, tapering off before the walking lane.
+    for (const side of [-1,1]) if (map[y][x+side] === '~') {
+      const bank = side === 1 ? px+tile-6 : px;
+      rect(ctx,'#49323b',bank,py,6,tile);
+      rect(ctx,'#65403f',side === 1 ? bank+3 : bank,py,3,tile);
+      rect(ctx,'#a25b41',side === 1 ? bank+5 : bank,py+3,1,6+seed%8);
+    }
     return;
   }
-  rect(ctx, '#655468', px, py, tile, tile);
-  rect(ctx, '#736075', px + 1, py + 2, 6, tile - 4);
-  rect(ctx, '#59495a', px + 8, py + 3, 3, tile - 3);
-  rect(ctx, '#786478', px + 12, py, 4, tile - 3);
-  if (map[y - 1]?.[x] !== '#') rect(ctx, '#9e8593', px, py, tile, 2);
-  if (map[y + 1]?.[x] !== '#') {
-    rect(ctx, '#473a48', px, py + tile - 5, tile, 5);
-    rect(ctx, '#af7d78', px, py + tile - 5, tile, 1);
+
+  const north = map[y-1]?.[x] !== '#', south = map[y+1]?.[x] !== '#';
+  const h = south ? tile - 6 : tile;
+  rect(ctx, ['#6e5360','#715764','#755965','#695362'][seed%4], px, py, tile, h);
+  const seam = 3 + seed % 6, layer = 4 + (seed >> 2) % 4;
+  rect(ctx, '#624b59', px, py+layer+1, seam, 2);
+  rect(ctx, '#826471', px, py+layer, seam, 1);
+  rect(ctx, '#584755', px+seam, py+layer+2, 3, 2);
+  rect(ctx, '#66505e', px+seam+2, py+layer+3, 6, 1);
+  rect(ctx, '#836471', px+seam+2, py+layer+4, 3, 1);
+  if (seed % 5 === 0) {
+    rect(ctx,'#a47774',px+11,py+3,5,1);
+    rect(ctx,'#c18e79',px+13,py+2,2,1);
   }
-  if (map[y]?.[x - 1] !== '#') rect(ctx, '#8a7283', px, py, 1, tile - 2);
+  if (seed % 17 === 0) {
+    // Narrow, stepped quartz veins follow a split in the darker basalt.
+    for (const [dx,dy] of [[4,8],[6,7],[8,6],[10,5],[8,9],[10,8]]) {
+      rect(ctx,'#514352',px+dx,py+dy,3,2);
+      rect(ctx,'#c5a2aa',px+dx,py+dy,2,1);
+    }
+    rect(ctx,'#e1c8bd',px+9,py+6,2,1);
+  }
+  if (north) {
+    rect(ctx, '#9c7681', px, py, tile, 2);
+    rect(ctx, '#b58a8a', px+2, py, 6+seed%8, 1);
+  }
+  if (map[y][x-1] !== '#') rect(ctx, '#977481', px, py+1, 2, h-1);
+  if (map[y][x+1] !== '#') rect(ctx, '#544453', px+tile-2, py+2, 2, h-2);
+  if (south) {
+    rect(ctx, '#4c3c4a', px, py+h, tile, 5);
+    rect(ctx, '#362e3c', px, py+tile-1, tile, 1);
+    rect(ctx, '#aa7a77', px, py+h-1, tile, 1);
+    rect(ctx, '#7e595e', px+1, py+h+1, seam+3, 2);
+    rect(ctx, '#654b55', px+seam+5, py+h+2, 5, 1);
+  }
 }
 
 export function drawNetherBridges(ctx, state, tile) {
@@ -233,9 +323,23 @@ export function drawNetherBridges(ctx, state, tile) {
 export const netherMonsterColors = {
   X: '#302737', H: '#fff1d9', K: '#dbcfc7', L: '#b9a6ae', M: '#8b798d',
   R: '#ba4c46', T: '#ef7350', B: '#793e45', E: '#ffba58', G: '#ffdf82',
+  A: '#ac6935', Y: '#f9bc4d', Q: '#fff3a4', O: '#f08c31', F: '#d56933',
+  C: '#474958', S: '#757c90', D: '#3a3546', W: '#adbbd2', P: '#e3dcdf', V: '#857f9b',
 };
 
 export const netherMonsterPixels = {
+  blaze: [
+    '....F..Y...O....', '...O..YGQQY..A..', '..Y..XYYYYGXAQ..', '..Q..XGGQYYXYE..',
+    '..E..XXAXXAXYE..', '...Y.XOYYOYX.O..', '.Y.Y..AEEOA.....', '.Q.O...YY...Y...',
+    '.Y...Q.FO.Y.Q...', '.O.Y.Y..F.Q.YE..', '..AQQE.YO.Y..O..', '...YE..QY.O.Y...',
+    '...O..YYE...Q...', '......EY..Y.E...', '......O...Q..A..', '..........O.....',
+  ],
+  wither_skeleton: [
+    '......VSSSV.....', '.....VWSSSCX....', '.....VCSDSSX....', '.....VXXCXXC..P.',
+    '.....VSCDSCX.WS.', '......VSSC...WC.', '.......SDX..PSC.', '....VWSDDSV.WC..',
+    '...VSDXSSXSVSC..', '...VD.VDDXXWSX..', '...VS.VCSX..P...', '....V.VDDX......',
+    '.....VSCVSC.....', '.....VCX.DV.....', '.....VSX.SV.....', '....VSCX.VSC....',
+  ],
   ghast: [
     '...XXXXXXXXXX...', '..XHHHHHHHHKKX..', '.XHHHHHHHHHKKLX.', '.XHHKKHHHHHKLLX.',
     '.XHHHHHHHHKKLLX.', '.XHXXKHHXXKKLLX.', '.XHKMLHHMLKKLLX.', '.XHHHKKKHHKKLLX.',
@@ -254,13 +358,23 @@ const formations = { lavafall: lavaFalls, basalt_columns: basaltSpire, crimson_f
 
 export function drawNetherFixture(ctx, { type, x, y, width, height }, tile) {
   const w = width * tile, h = height * tile, px = x * tile, py = y * tile;
-  rect(ctx, '#51414d', px + 2, py + 2, w - 4, h - 5);
-  rect(ctx, '#604751', px + 4, py + 4, w - 8, h - 10);
-  rect(ctx, '#534049', px + 4, py + h - 11, w - 8, 5);
-  const scale = Math.min((w - 5) / 68, (h - 5) / 48);
+  const cx = px+w*.45, cy = py+h*.55;
+  const light = ctx.createRadialGradient(cx,cy,2,cx,cy,w*.60);
+  const tone = type === 'lavafall' ? '255,117,46' : type === 'crimson_fungi' ? '190,81,103' : '116,119,158';
+  light.addColorStop(0,'rgba('+tone+',.38)');
+  light.addColorStop(.55,'rgba('+tone+',.19)');
+  light.addColorStop(1,'rgba('+tone+',0)');
+  rect(ctx,light,cx-w*.6,cy-w*.6,w*1.2,w*1.2);
+  const scale = Math.min((w-5)/68,(h-5)/48);
   ctx.save();
-  ctx.translate(Math.round(px + (w - 68 * scale) / 2), Math.round(py + h - 3 - 48 * scale));
-  ctx.scale(scale, scale);
+  ctx.translate(Math.round(px+(w-68*scale)/2),Math.round(py+h-3-48*scale));
+  ctx.scale(scale,scale);
+  // Rugged outcrops grow directly out of the wall, with a narrow lip facing the corridor.
+  polygon(ctx,'#423645',[[1,40],[10,35],[28,35],[43,31],[61,37],[66,41],[60,46],[23,48],[9,46]]);
+  polygon(ctx,'#5c4451',[[1,40],[10,35],[28,35],[43,31],[61,37],[65,40],[56,43],[23,45],[9,44]]);
+  polygon(ctx,'#775562',[[7,39],[14,36],[28,36],[42,32],[59,37],[53,39],[39,36],[23,40]]);
+  rect(ctx,'#98665e',13,45,5,1);
+  rect(ctx,'#795461',40,44,7,1);
   formations[type](ctx);
   ctx.restore();
 }
@@ -283,5 +397,62 @@ export function drawLavaFlow(ctx, state, tile) {
     rect(ctx, '#f19b4c', x * tile + dx, y * tile + dy, 7, 1);
     rect(ctx, '#f19b4c', x * tile + dx + 6, y * tile + dy - 1, 2, 1);
     if ((phase + 3 * y + x) % 12 < 2) rect(ctx, '#ffc368', x * tile + 3, y * tile + 3, 2, 2);
+  }
+}
+
+
+function fireLane(ctx, monster, tile) {
+  const {x, y} = monster.aim;
+  const mx = Math.round(monster.x), my = Math.round(monster.y);
+  const dx = Math.sign(x - mx), dy = Math.sign(y - my);
+  const steps = Math.abs(x - mx) + Math.abs(y - my);
+  for (let i = 1; i <= steps; i++) {
+    const cx = Math.round((mx + dx * i + .5) * tile);
+    const cy = Math.round((my + dy * i + .5) * tile);
+    // Twin sparks identify the blaze's two-shot volley.
+    for (const side of [-1, 1]) {
+      const sx = cx + dy * side * 4, sy = cy + dx * side * 4;
+      rect(ctx, '#814433', sx - 2, sy - 2, 4, 4);
+      rect(ctx, '#ffe487', sx - 1, sy - 1, 2, 2);
+    }
+  }
+}
+
+function emberBolt(ctx, effect, tile) {
+  ctx.save();
+  ctx.translate(Math.round((effect.x + .5) * tile), Math.round((effect.y + .5) * tile));
+  ctx.rotate(({right: 0, down: .5, left: 1, up: -.5})[effect.dir] * Math.PI);
+  rect(ctx, '#9f472a', -7, 0, 11, 2);
+  rect(ctx, '#e89c37', -5, -1, 8, 3);
+  rect(ctx, '#ffdb66', -3, -2, 5, 5);
+  rect(ctx, '#fff9c8', 1, -1, 3, 3);
+  ctx.restore();
+}
+
+function swordReach(ctx, cells, tile, active) {
+  for (const [x, y] of cells) {
+    const px = x * tile, py = y * tile;
+    const color = active ? '#f2d9fe' : '#bfa3ce';
+    for (const side of [-1, 1]) {
+      const sx = px + (side === -1 ? 2 : tile - 4);
+      rect(ctx, '#48374f', sx - 1, py + 3, 4, tile - 6);
+      rect(ctx, color, sx, py + 3, 2, tile - 6);
+      rect(ctx, color, sx + (side === -1 ? 2 : -2), py + 3, 2, 2);
+    }
+    if (active) {
+      for (let i = 0; i < 5; i++) rect(ctx, color, px + 5 + i * 2, py + 13 - i * 2, 3, 2);
+    }
+  }
+}
+
+export function drawNetherThreats(ctx, state, tile) {
+  for (const monster of state.monsters) {
+    if (!monster.aim || monster.windup <= 0) continue;
+    if (monster.type === 'blaze') fireLane(ctx, monster, tile);
+    if (monster.type === 'wither_skeleton') swordReach(ctx, monster.cells, tile, false);
+  }
+  for (const effect of state.effects) {
+    if (effect.type === 'ember' && !(effect.delay > 0)) emberBolt(ctx, effect, tile);
+    if (effect.type === 'wither_slash') swordReach(ctx, effect.cells, tile, true);
   }
 }

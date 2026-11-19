@@ -158,3 +158,183 @@ test('the pumpkin guard warns before lighting three corridor cells; the lantern 
   assert.ok(state.slow > 0);
   assert.equal(state.lives, 3);
 });
+
+function advanceUntil(game, condition, maxSeconds = 12) {
+  for (let step = 0; step < maxSeconds * 60 && !condition(); step++) game.update(1 / 60);
+  assert.ok(condition());
+}
+
+function dragonEncounter(hero = 'kirill') {
+  const { game, state } = encounter('end', 'enderman', hero);
+  for (const monster of state.monsters) monster.stun = 100;
+  place(state.player, 11, 13);
+  advanceUntil(game, () => state.dragon.phase === 'warning');
+  return { game, state };
+}
+
+test('the End dragon flies above walls while waiting and freezes with the game', () => {
+  const game = createGame('mom', 'end');
+  const { state } = game;
+  game.start();
+  const spawns = state.monsters.map(m => [m.x, m.y]);
+  advanceUntil(game, () => state.map[Math.round(state.dragon.y)][Math.round(state.dragon.x)] === '#');
+  const { x } = state.dragon;
+  game.update(0.2);
+  assert.notEqual(state.dragon.x, x);
+  game.update(17);
+  assert.equal(state.dragon.phase, 'patrol');
+  assert.deepEqual(state.dragon.cells, []);
+  assert.deepEqual(state.monsters.map(m => [m.x, m.y]), spawns);
+  assert.equal(state.effects.length, 0);
+  assert.equal(state.lives, 3);
+  game.pause();
+  const paused = { ...state.dragon };
+  game.update(9);
+  assert.deepEqual(state.dragon, paused);
+});
+
+test('a dragon pass marks three separated floor cells, then leaves three lingering, avoidable clouds', () => {
+  const { game, state } = dragonEncounter();
+  const targets = state.dragon.cells.map(cell => [...cell]);
+  assert.equal(targets.length, 3);
+  assert.ok(targets.some(([x, y]) => x === 11 && y === 13));
+  assert.equal(state.effects.length, 0);
+  assert.ok(state.dragon.windup > 1);
+  // A normal turn takes the player off the flight path before the first cloud.
+  game.turn('up');
+  game.update(2 / 3.8);
+  assert.equal(state.player.y, 12); // One step up, then a wall.
+  assert.deepEqual(state.dragon.cells, targets);
+  const cloudCount = () => state.effects.filter(e => e.type === 'dragon_breath').length;
+  advanceUntil(game, () => cloudCount() === 3);
+  for (const [x, y] of targets) {
+    assert.equal(state.map[y][x], '.');
+    assert.ok(state.effects.some(e => e.type === 'dragon_breath' && e.x === x && e.y === y && e.remaining > 1));
+  }
+  game.pause();
+  const remaining = state.effects.map(e => e.remaining);
+  game.update(5);
+  assert.deepEqual(state.effects.map(e => e.remaining), remaining);
+  game.resume();
+  game.update(3.1);
+  assert.equal(cloudCount(), 0);
+  assert.equal(state.lives, 3);
+});
+
+test('standing in dragon breath costs one life, clears hazards and returns to a safe respawn', () => {
+  const { game, state } = dragonEncounter();
+  advanceUntil(game, () => state.lives === 2);
+  assert.equal(state.effects.length, 0);
+  assert.equal(state.dragon.phase, 'patrol');
+  assert.ok(state.invulnerable > 0);
+  game.update(15);
+  assert.equal(state.lives, 2);
+  assert.equal(state.effects.length, 0);
+});
+
+test('invisibility or a shout cancels a dragon pass and clears the clouds already dropped', () => {
+  for (const hero of ['mom', 'dad']) {
+    const { game, state } = dragonEncounter(hero);
+    place(state.player, 11, 12);
+    advanceUntil(game, () => state.effects.some(e => e.type === 'dragon_breath'));
+    assert.ok(game.activate());
+    game.update(0.05);
+    assert.deepEqual(state.dragon.cells, []);
+    assert.equal(state.dragon.phase, 'patrol');
+    assert.deepEqual(state.effects, []);
+    assert.equal(state.lives, 3);
+  }
+});
+
+test('two Endermen reserve different teleport destinations and keep away from the hero on landing', () => {
+  const { game, state, monster } = encounter('end', 'enderman');
+  place(state.player, 11, 13);
+  const second = state.monsters.find(m => m.type === 'enderman' && m !== monster);
+  second.skillCooldown = second.stun = 0;
+  game.update(0.01);
+  assert.ok(monster.aim && second.aim);
+  assert.notDeepEqual(monster.aim, second.aim);
+  const landing = [monster.aim.x, monster.aim.y];
+  place(state.player, ...landing);
+  game.update(0.91);
+  assert.notDeepEqual([monster.x, monster.y], landing);
+  assert.ok(Math.hypot(second.x - monster.x, second.y - monster.y) >= 1);
+  assert.equal(state.lives, 3);
+});
+
+test('a shulker stays anchored while its slow bolt turns a corner once and temporarily lifts the hero', () => {
+  const { game, state, monster } = encounter('end', 'shulker');
+  place(monster, 7, 13);
+  place(state.player, 10, 13);
+  game.update(0.02);
+  assert.ok(monster.windup > 0);
+  assert.equal(monster.aim.dir, 'right');
+  advanceUntil(game, () => state.effects.some(e => e.type === 'shulker_bolt'));
+  const bolt = state.effects.find(e => e.type === 'shulker_bolt');
+  place(state.player, 9, 12);
+  advanceUntil(game, () => bolt.dir === 'up');
+  assert.equal(bolt.x, 9);
+  assert.equal(bolt.canTurn, false);
+  advanceUntil(game, () => state.levitation > 0);
+  assert.ok(state.slow > 0 && state.slow <= 1.5);
+  assert.deepEqual([monster.x, monster.y], [7, 13]);
+  assert.equal(state.lives, 3);
+  game.update(1.6);
+  assert.equal(state.levitation, 0);
+  assert.equal(state.slow, 0);
+});
+
+test('a shulker bolt can be sidestepped, expires against a wall and the shell is safe to pass', () => {
+  const { game, state, monster } = encounter('end', 'shulker');
+  place(monster, 1, 5);
+  place(state.player, 6, 5);
+  game.update(0.02);
+  assert.ok(monster.windup > 0);
+  place(state.player, 2, 1);
+  advanceUntil(game, () => state.effects.some(e => e.type === 'shulker_bolt'));
+  advanceUntil(game, () => state.effects.length === 0);
+  assert.equal(state.levitation, 0);
+  place(state.player, monster.x, monster.y);
+  game.update(0.05);
+  assert.equal(state.lives, 3);
+});
+
+test('a blaze charges, shoots two separate flames across lava and can be dodged', () => {
+  const { game, state, monster } = acrossLava('blaze');
+  game.update(0.02);
+  assert.ok(monster.windup > 0);
+  place(state.player, 12, 7);
+  advanceUntil(game, () => state.effects.length > 0);
+  const [first, second] = state.effects;
+  assert.equal(first.type, 'ember');
+  assert.equal(second.type, 'ember');
+  assert.ok(first.x > second.x && second.delay > 0);
+  game.update(0.29);
+  assert.equal(state.map[Math.round(first.y)][Math.round(first.x)], '~');
+  assert.equal(second.x, 9);
+  game.update(0.25);
+  assert.ok(second.x > 9);
+  game.update(1.2);
+  assert.ok(state.effects.every(e => e.type !== 'ember'));
+  assert.equal(state.lives, 3);
+
+  const target = acrossLava('blaze');
+  advanceUntil(target.game, () => target.state.lives === 2);
+  assert.equal(target.state.effects.length, 0);
+});
+
+test('a wither skeleton marks two corridor tiles before a slash that slows the hero', () => {
+  const { game, state, monster } = encounter('nether', 'wither_skeleton');
+  place(monster, 3, 13);
+  place(state.player, 5, 13);
+  game.update(0.02);
+  assert.ok(monster.windup > 0);
+  assert.deepEqual(monster.cells, [[4, 13], [5, 13]]);
+  assert.equal(state.slow, 0);
+  advanceUntil(game, () => state.effects.some(e => e.type === 'wither_slash'));
+  assert.ok(state.slow > 0);
+  assert.equal(state.lives, 3);
+  place(state.player, 1, 13);
+  game.update(1.01);
+  assert.equal(state.slow, 0);
+});

@@ -106,6 +106,24 @@ const castleMap = Object.freeze([
   '#######################',
 ]);
 
+const endMap = Object.freeze([
+  '#######################',
+  '#.....................#',
+  '#.#####.#.###.#.......#',
+  '#.#####.#.....#.#####.#',
+  '#.#####.#.###.#.#####.#',
+  '#.......#.....#.#####.#',
+  '#.######......#.......#',
+  '#.#....#.#####..#####.#',
+  '#.#.##.#.#####.#......#',
+  '#....#.#.#####.#.####.#',
+  '#.##.#.#.......#...#..#',
+  '#....#.#.######....#..#',
+  '#...##.......#..#####.#',
+  '#.....................#',
+  '#######################',
+]);
+
 export const LEVELS = {
   temple: {
     title: 'Храм изумруда',
@@ -117,7 +135,11 @@ export const LEVELS = {
       { type: 'zombie', start: [21, 1], patrol: [21, 13], speed: 2.05 },
       { type: 'spider', start: [11, 5], patrol: [11, 1], speed: 2.60 },
     ],
-    decorations: [],
+    decorations: [
+      { type: 'stone_mask', x: 10, y: 2, width: 3, height: 3 },
+      { type: 'brazier', x: 3, y: 6, width: 3, height: 1 },
+      { type: 'brazier', x: 17, y: 6, width: 3, height: 1 },
+    ],
   },
   arcade: {
     title: 'Игровой центр',
@@ -180,6 +202,8 @@ export const LEVELS = {
     monsters: [
       { type: 'ghast', start: [19, 2], patrol: [14, 11], speed: 1.75 },
       { type: 'magma_cube', start: [12, 9], patrol: [1, 5], speed: 2.15 },
+      { type: 'blaze', start: [21, 6], patrol: [18, 13], speed: 1.45 },
+      { type: 'wither_skeleton', start: [1, 1], patrol: [9, 7], speed: 1.65 },
     ],
     bridges: [[10, 3], [11, 3], [10, 7], [11, 7], [10, 11], [11, 11]],
     decorations: [
@@ -190,7 +214,7 @@ export const LEVELS = {
   },
   castle: {
     title: 'Замок на Хеллоуин',
-    next: null,
+    next: 'end',
     map: castleMap,
     start: [11, 13],
     monsters: [
@@ -202,6 +226,24 @@ export const LEVELS = {
       { type: 'gatehouse', x: 8, y: 2, width: 6, height: 3 },
       { type: 'cauldron', x: 2, y: 7, width: 4, height: 3 },
       { type: 'pumpkin_patch', x: 16, y: 8, width: 5, height: 3 },
+    ],
+  },
+  end: {
+    title: 'Край',
+    next: null,
+    map: endMap,
+    start: [11, 13],
+    dragon: 'ender_dragon',
+    monsters: [
+      { type: 'enderman', start: [1, 1], patrol: [6, 11], speed: 1.65 },
+      { type: 'shulker', start: [3, 5], patrol: [3, 5], speed: 0 },
+      { type: 'enderman', start: [21, 1], patrol: [15, 12], speed: 1.60 },
+      { type: 'shulker', start: [17, 11], patrol: [17, 11], speed: 0 },
+    ],
+    decorations: [
+      { type: 'crystal_spires', x: 2, y: 2, width: 5, height: 3 },
+      { type: 'exit_portal', x: 9, y: 7, width: 5, height: 3 },
+      { type: 'chorus_grove', x: 16, y: 3, width: 5, height: 3 },
     ],
   },
 };

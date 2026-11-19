@@ -201,7 +201,7 @@ test('the full campaign carries remaining lives and cooldown into each next leve
     game.update(1);
     assert.equal(state.status, 'won');
   }
-  for (const next of ['arcade', 'waterpark', 'store', 'nether', 'castle']) {
+  for (const next of ['arcade', 'waterpark', 'store', 'nether', 'castle', 'end']) {
     collectLast();
     const cooldown = state.cooldown;
     assert.ok(game.nextLevel());
