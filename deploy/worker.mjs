@@ -1,4 +1,5 @@
-const gamePath = '/block-maze/';
+const defaultGame = '/block-maze/';
+const games = new Set(['block-maze', 'block-jump']);
 const origin = 'https://polomodov.github.io';
 
 export default {
@@ -7,13 +8,18 @@ export default {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD' } });
     }
-    if (url.pathname === '/' || url.pathname === '/block-maze') {
-      const isRoot = url.pathname === '/';
+    if (url.pathname === '/') {
       url.protocol = 'https:';
-      url.pathname = gamePath;
-      return Response.redirect(url, isRoot ? 302 : 308);
+      url.pathname = defaultGame;
+      return Response.redirect(url, 302);
     }
-    if (!url.pathname.startsWith(gamePath)) return new Response(null, { status: 404 });
+    const section = url.pathname.split('/')[1];
+    if (!games.has(section)) return new Response(null, { status: 404 });
+    if (url.pathname === '/' + section) {
+      url.protocol = 'https:';
+      url.pathname += '/';
+      return Response.redirect(url, 308);
+    }
     if (url.protocol === 'http:') {
       url.protocol = 'https:';
       return Response.redirect(url, 308);

@@ -40,6 +40,7 @@ button {
   cursor: pointer;
   color: inherit;
 }
+a:focus-visible,
 button:focus-visible,
 canvas:focus-visible {
   outline: 3px solid white;
@@ -97,6 +98,14 @@ nav,
 .wordmark span {
   color: var(--lime);
 }
+.sibling-game {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 8px 0;
+  color: var(--muted);
+  text-underline-offset: 3px;
+}
+.sibling-game:hover { color: var(--lime); }
 nav {
   gap: 9px;
 }
