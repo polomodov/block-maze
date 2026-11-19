@@ -1,5 +1,7 @@
 // All durations below use active game time. Warning targets stay fixed until the attack resolves.
-const PREPARATION = { creeper: 1, skeleton: 0.65, elder_guardian: 0.9, enderman: 0.9, ghast: 1, magma_cube: 0.65, pumpkin_guard: 1, blaze: 0.85, wither_skeleton: 0.7, shulker: 0.8 };
+export const PREPARATION = { creeper: 1, skeleton: 0.65, elder_guardian: 0.9, enderman: 0.9, ghast: 1, magma_cube: 0.65, pumpkin_guard: 1, blaze: 0.85, wither_skeleton: 0.7, shulker: 0.8 };
+export const BLAST_DURATION = .32;
+export const BLAST_LIFETIME = .65;
 const RECOVERY = { creeper: 3, skeleton: 5, elder_guardian: 8, enderman: 8, ghast: 5, magma_cube: 3, pumpkin_guard: 6, blaze: 6, wither_skeleton: 5, shulker: 4.5 };
 const STEP = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const FIREBALL_SPEED = 3.5;
@@ -11,6 +13,8 @@ export function resetSkill(monster) {
   monster.charging = false;
   monster.watched = false;
   monster.leap = null;
+  monster.shot = null;
+  monster.teleport = null;
   clearWarning(monster);
 }
 
@@ -122,12 +126,14 @@ function resolveWarning(state, monster, index, spawn, distance) {
   const { x, y, type, aim, cells } = monster;
   switch (type) {
     case 'creeper':
-      state.effects.push({ type: 'blast', x, y, cells, owner: index, remaining: 0.32 });
+      state.effects.push({ type: 'blast', x, y, cells, owner: index, remaining: BLAST_DURATION });
+      state.blastBursts.push({ x, y, cells, at: state.time });
       [monster.x, monster.y] = spawn;
       monster.dir = null;
       monster.target = null;
       break;
     case 'skeleton':
+      monster.shot = { dir: aim.dir, at: state.time };
       state.effects.push({ type: 'arrow', x, y, dir: aim.dir, owner: index, remaining: 4 / 5 });
       break;
     case 'shulker':
@@ -156,6 +162,7 @@ function resolveWarning(state, monster, index, spawn, distance) {
       break;
     case 'enderman':
       if (safeLanding(state, monster, aim.x, aim.y, distance)) {
+        monster.teleport = { x, y, toX: aim.x, toY: aim.y, at: state.time };
         monster.x = aim.x;
         monster.y = aim.y;
         monster.dir = null;

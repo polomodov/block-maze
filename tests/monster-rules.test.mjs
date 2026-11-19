@@ -59,6 +59,11 @@ test('a primed creeper explodes after its warning, damages a neighbour and respa
   until(game, () => state.lives < 3, 2, 'adjacent blast missed');
   assert.equal(state.lives, 2);
   assert.deepEqual([state.monsters[0].x, state.monsters[0].y], [1, 1]);
+  assert.deepEqual(state.blastBursts.map(burst => [burst.x, burst.y]), [[8, 13]]);
+  assert.equal(state.effects.length, 0);
+  game.update(.7);
+  assert.equal(state.blastBursts.length, 0);
+  assert.equal(state.lives, 2);
 });
 
 test('escaping a primed creeper around a wall leaves the player unharmed', () => {
@@ -75,7 +80,10 @@ test('escaping a primed creeper around a wall leaves the player unharmed', () =>
 test('an arrow follows its firing line and costs a life on contact', () => {
   const { game, state, monster } = encounter('store', 'skeleton');
   until(game, () => monster.windup > 0, 0.1, 'skeleton did not aim');
+  assert.equal(monster.shot, null);
+  const direction = monster.aim.dir;
   until(game, () => state.effects.some(effect => effect.type === 'arrow'), 2, 'no shot');
+  assert.deepEqual(monster.shot, { dir: direction, at: state.time });
   assert.equal(state.lives, 3);
   until(game, () => state.lives < 3, 1.5, 'arrow did not hit');
   assert.equal(state.lives, 2);
@@ -124,6 +132,7 @@ test('the enderman signals a teleport and lands on an open tile away from the pl
   until(game, () => Math.hypot(monster.x - start[0], monster.y - start[1]) > 2, 2, 'no teleport');
   const x = Math.round(monster.x);
   const y = Math.round(monster.y);
+  assert.deepEqual(monster.teleport, { x: start[0], y: start[1], toX: x, toY: y, at: state.time });
   assert.equal(state.map[y][x], '.');
   assert.notDeepEqual([x, y], [state.player.x, state.player.y]);
   assert.ok(Math.abs(x - state.player.x) + Math.abs(y - state.player.y) < 13);
@@ -146,5 +155,6 @@ test('the enderman cancels a teleport if the hero moves onto the marked tile', (
   place(state.player, monster.aim.x, monster.aim.y);
   until(game, () => !monster.windup, 2, 'warning did not finish');
   assert.deepEqual([monster.x, monster.y], start);
+  assert.equal(monster.teleport, null);
   assert.equal(state.lives, 3);
 });

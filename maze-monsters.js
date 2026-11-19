@@ -1,3 +1,4 @@
+import { archerPose, drawArcherArms, drawFuse, phaseShift } from './monster-motion.js?v=monster-motion-1';
 // Illustration coordinates are in game units. The canvas scales the paths at display density.
 const paths = new Map();
 function shape(c, d, fill, edge, width = .55) {
@@ -37,7 +38,7 @@ function eyes(c,x,y,gap,color='#272936') {
   c.fillStyle=color;c.fillRect(x,y,1.12,1.5);c.fillRect(x+gap,y,1.1,1.5);
 }
 const bipeds=new Set(['zombie','drowned','skeleton','wither_skeleton','pumpkin_guard','enderman','witch']);
-function humanoid(c,id,gait,dancing) {
+function humanoid(c,id,gait,dancing,bow,warp) {
   const wither=id==='wither_skeleton',bone=id==='skeleton'||wither, dark=id==='enderman', pumpkin=id==='pumpkin_guard', witch=id==='witch';
   const face=wither?['#555663','#858493','#383747']:bone?stone:dark?coal:pumpkin?fire:witch?['#aa8c81','#d3b8a0','#776575']:id==='drowned'?sea:zombie;
   const coat=bone?face:dark?coal:pumpkin?['#686f46','#a5a060','#414c3e']:witch?purple:teal;
@@ -63,7 +64,10 @@ function humanoid(c,id,gait,dancing) {
       const reach=(1+gait*side)*.5;
       stroke(c,side*2.5,-11,side*(4.65+reach),-9.75-reach*2.4,side*(5.65+reach*.65),-8.4-reach*8,face[side===1?0:2],dark?1.15:1.82);
     }
-  } else {
+  } else if (dark && warp > 0) {
+    stroke(c,-2.8,-11,-3.7-warp*2,-7.5-warp*2,-2.9-warp*3,-1.2-warp*13,face[2],1.22);
+    stroke(c,2.5,-11,3.3+warp*2,-7.7-warp*2,3.2+warp*2.7,-1.2-warp*13,face[0],1.3);
+  } else if (!bow) {
     const reach=dark?-.9:-5.9;
     stroke(c,-2.95,-11.1,-2.7+gait,-8.4,-2.8+gait*2,reach,face[2],dark?1.05:1.62);
     stroke(c,2.5,-11.1,3.25-gait,-8.3,3.5-gait*1.8,reach,face[0],dark?1.1:1.78);
@@ -90,18 +94,24 @@ function humanoid(c,id,gait,dancing) {
   if(wither) {
     shape(c,'M4 -5.4L4.6 -7.3 6.9 -13.4 8.3 -14.35 8 -12.5 5.7 -6.85 5.1 -5Z','#afbbc7','#515166',.62);
     shape(c,'M3.3 -7.7L6.65 -6.3',null,'#cab07b',.9);
-  } else if(bone)shape(c,'M5 -10Q9 -7.9 4.2 -4.2L5 -10',null,'#b4855a',.67);
+  } else if(bow) drawArcherArms(c,bow);
+  else if(bone) {
+    shape(c,'M3.9 -10.9Q9 -9.4 6.6 -5.4L4.6 -3.4',null,'#573a32',1.38);
+    shape(c,'M3.9 -10.9Q9 -9.4 6.6 -5.4L4.6 -3.4',null,'#e4a864',.8);
+    shape(c,'M3.9 -10.9L4.6 -3.4',null,'#ebdcb5',.44);
+  }
   c.restore();
   c.restore();
 }
-function creature(c,id,t,gait,flash,dancing) {
-  if(bipeds.has(id)) { humanoid(c,id,gait,dancing);return; }
+function creature(c,id,t,gait,flash,dancing,bow,warp,fuse) {
+  if(bipeds.has(id)) { humanoid(c,id,gait,dancing,bow,warp);return; }
   if(id==='creeper'){
     const leafy=flash?['#fff0b2','#fffade','#e1c894']:moss;
     for(const i of [-1,1]) cube(c,i*(2.2+(dancing?1:0))-1.1+gait*i,-2.8-(dancing?Math.max(0,gait*i)*3:0),3,2.55,1.25,leafy);
     cube(c,-1.5,-11,4.2,8.5,1.65,leafy);cube(c,-2.6,-17.4,6.7,6,2,leafy);
     eyes(c,-1.7,-15.8,3.7); shape(c,'M.15 -14.55L1.75 -14.55 1.75 -13.65 2.55 -13.65 2.55 -12 1.75 -12 1.75 -12.6 .1 -12.6 .1 -12 -.65 -12 -.65 -13.65 .15 -13.65Z',coal[2]);
     c.fillStyle=flash?'#fffce3':'#93b86d';c.fillRect(-1,-9.5,1.1,1.15);c.fillRect(1,-6.7,1.3,1.5);
+    if (fuse !== null) drawFuse(c,fuse);
   }else if(id==='slime'||id==='magma_cube'){
     const hot=id==='magma_cube';
     const col=hot?red:['#58b388','#aff1a7','#38857b'];
@@ -186,9 +196,26 @@ export function drawMazeMonster(ctx,monster,x,y,time=0,flash=false,songAge=0) {
   const movementTime=still || (!monster.target && monster.type==='spider') ? 0 : time;
   ctx.save();
   ctx.translate(x,y+7.5);
-  ctx.scale((monster.dir==='left'?-1:1)*size,size);
+  const bow=monster.type==='skeleton' ? archerPose(monster,time) : null;
+  const warp=monster.type==='enderman' ? phaseShift(monster,time) : 0;
+  const fuse=monster.type==='creeper' && monster.windup>0 && !dancing && !still ? Math.max(0,1-monster.windup) : null;
+  const facing=bow ? bow.dir : monster.dir;
+  ctx.scale((facing==='left'?-1:1)*size,size);
+  if (warp) {
+    ctx.scale(1-.44*warp,1+.15*warp);
+    ctx.globalAlpha *= 1-.48*warp;
+  }
+  if (fuse !== null) {
+    const pulse=.5-.5*Math.cos(2*Math.PI*(fuse*.85+fuse*fuse));
+    ctx.scale(1+fuse*(.15+.15*pulse),1+fuse*(.08-.13*pulse));
+    ctx.rotate(fuse * Math.sin(fuse*38) * .049);
+  }
   ctx.lineCap='round';ctx.lineJoin='round';
-  creature(ctx,monster.type,dancing?songAge:movementTime,gait,flash,dancing);
+  creature(ctx,monster.type,dancing?songAge:movementTime,gait,flash,dancing,bow,warp,fuse);
+  if (fuse !== null) {
+    ctx.globalAlpha *= (.2 + .60*fuse) * (.5 - .5*Math.cos(2*Math.PI*(fuse*.85+fuse*fuse)));
+    creature(ctx,'creeper',time,gait,true,false,null,0,null);
+  }
   ctx.restore();
   return true;
 }

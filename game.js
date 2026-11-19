@@ -1,7 +1,7 @@
 import { playGuitar, stopGuitar, performanceAge } from './guitar.js?v=encore-1';
-import { createGame } from './engine.js?v=encore-1';
+import { createGame } from './engine.js?v=monster-motion-1';
 import { LEVELS } from './levels.js?v=end-family-1';
-import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=encore-1';
+import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=monster-motion-1';
 
 const byId = (id) => document.getElementById(id);
 const lobby = byId('lobby');
@@ -28,15 +28,15 @@ const heroes = {
 };
 const monsters = {
   zombie: { name: 'Зомби', hint: 'Упорно идёт за тобой по лабиринту.' },
-  creeper: { name: 'Крипер', hint: 'Готовится взорваться, когда ты рядом. Отбеги хотя бы на две клетки.' },
+  creeper: { name: 'Крипер', hint: 'Раздувается перед взрывом. Пока горит запал, отбеги хотя бы на две клетки.' },
   spider: { name: 'Паук', hint: 'Целится на клетку впереди тебя. Попробуй резко свернуть.' },
   slime: { name: 'Слизень', hint: 'Прыгает рывками. Обходи его, пока он отдыхает между прыжками.' },
-  skeleton: { name: 'Скелет', hint: 'Целится и пускает стрелу по прямой. Сверни за угол, пока он готовится.' },
+  skeleton: { name: 'Скелет', hint: 'Натягивает тетиву и пускает стрелу по прямой. Сверни за угол до выстрела.' },
   guardian: { name: 'Страж', hint: 'Охраняет свой участок. Выберись за его границу, и страж вернётся на пост.' },
   drowned: { name: 'Утопленник', hint: 'Набирает скорость на прямых дорожках. Пользуйся поворотами.' },
   elder_guardian: { name: 'Древний страж', hint: 'Готовит волну, которая замедляет героя рядом. Отбеги, пока волна заряжается.' },
   witch: { name: 'Ведьма', hint: 'Оставляет лужи зелья. Обходи их, чтобы сохранить скорость.' },
-  enderman: { name: 'Эндермен', hint: 'Предупреждает о прыжке и переносится поближе к тебе. Держи свободным путь для отхода.' },
+  enderman: { name: 'Эндермен', hint: 'Открывает фиолетовый портал в другом проходе. Там он появится через мгновение.' },
   ghast: { name: 'Гаст', hint: 'Целится и пускает огненный шар через лаву. Успей свернуть за угол.' },
   magma_cube: { name: 'Магмовый куб', hint: 'Перепрыгивает через лаву. Уходи с отмеченной клетки на другом берегу.' },
   blaze: { name: 'Ифрит', hint: 'Пускает две искры подряд по одной дорожке. Спрячься за углом и пропусти обе.' },

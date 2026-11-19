@@ -1,3 +1,4 @@
+import { drawArrowFlight, drawBlast, drawTeleport } from './monster-motion.js?v=monster-motion-1';
 // Signals use different silhouettes as well as colors. Keep all marks inside the walkways.
 const unit = 20;
 const center = tile => Math.round((tile + .5) * unit);
@@ -20,13 +21,6 @@ function corners(ctx, x, y, radius, color) {
 function spark(ctx, x, y, size, color) {
   rect(ctx, color, x - size, y, 2 * size + 1, 1);
   rect(ctx, color, x, y - size, 1, 2 * size + 1);
-}
-
-function portal(ctx, x, y, time) {
-  corners(ctx, x, y, 7, '#c28fee');
-  const drift = Math.floor(time * 8) % 4;
-  spark(ctx, x - 5, y + 2 - drift, 1, '#dda6e7');
-  spark(ctx, x + 4, y - 1 + drift, 2, '#9b79d0');
 }
 
 function markerArea(ctx, tiles, color, active) {
@@ -78,20 +72,6 @@ function landing(ctx, x, y, time) {
   rect(ctx, '#ffe6a3', cx - 2, cy + 1, 5, 1);
 }
 
-function drawArrow(ctx, effect) {
-  const { x, y, dir } = effect;
-  ctx.save();
-  ctx.translate(center(x), center(y));
-  ctx.rotate(({ right: 0, up: -.5, down: .5, left: 1 })[dir] * Math.PI);
-  rect(ctx, '#6f4845', -5, 0, 10, 2);
-  rect(ctx, '#ffd380', -5, -1, 9, 2);
-  rect(ctx, '#fff3cc', 2, -2, 2, 5);
-  rect(ctx, '#fff3cc', 4, -1, 2, 3);
-  rect(ctx, '#fff3cc', -6, -2, 2, 2);
-  rect(ctx, '#fff3cc', -6, 1, 2, 2);
-  ctx.restore();
-}
-
 function puddle(ctx, effect, time) {
   const x = center(effect.x), y = center(effect.y);
   rect(ctx, '#614367', x - 7, y - 3, 14, 6);
@@ -105,6 +85,7 @@ function puddle(ctx, effect, time) {
 // Pass the same affected cells as the simulation to keep warnings in step with collision rules.
 export function drawMonsterEffects(ctx, state) {
   for (const monster of state.monsters) {
+    if (monster.type === 'enderman') drawTeleport(ctx, monster, state.time, unit);
     if (monster.leap) landing(ctx, ...monster.leap.to, state.time);
     if (!(monster.windup > 0) || !monster.aim) continue;
     const { x, y } = monster.aim;
@@ -112,18 +93,17 @@ export function drawMonsterEffects(ctx, state) {
     if (monster.type === 'ghast') aimLine(ctx, monster, '#ffb092');
     if (monster.type === 'magma_cube') landing(ctx, x, y, state.time);
     if (monster.type === 'pumpkin_guard') markerArea(ctx, monster.cells, '#fca55b', false);
-    if (monster.type === 'enderman') portal(ctx, center(x), center(y), state.time);
     if (monster.type === 'creeper') markerArea(ctx, monster.cells, '#ffad71', false);
     if (monster.type === 'elder_guardian') markerArea(ctx, monster.cells, '#a2d9e6', false);
   }
   for (const effect of state.effects || []) {
-    if (effect.type === 'arrow') drawArrow(ctx, effect);
+    if (effect.type === 'arrow') drawArrowFlight(ctx, effect, unit);
     if (effect.type === 'fireball') fireball(ctx, center(effect.x), center(effect.y), effect.dir, state.time);
     if (effect.type === 'lantern') markerArea(ctx, effect.cells, '#ffdf76', true);
     if (effect.type === 'slow_pool') puddle(ctx, effect, state.time);
-    if (effect.type === 'blast') markerArea(ctx, effect.cells, '#ffdd7c', true);
     if (effect.type === 'pulse') markerArea(ctx, effect.cells, '#b5f3e7', true);
   }
+  for (const burst of state.blastBursts || []) drawBlast(ctx, burst, state.time, unit);
 }
 
 export function showCharge(ctx, monster, x, y) {
@@ -139,7 +119,7 @@ export function showCharge(ctx, monster, x, y) {
     rect(ctx, '#ffa75c', x - 2, y, 4, 3);
     rect(ctx, '#ffe9a1', x - 1, y, 2, 2);
   }
-  if (monster.windup > 0) {
+  if (monster.windup > 0 && !['skeleton','enderman','creeper'].includes(monster.type)) {
     rect(ctx, '#453944', x - 2, y - 12, 5, 9);
     rect(ctx, '#ffdda0', x, y - 11, 2, 4);
     rect(ctx, '#ffdda0', x, y - 6, 2, 2);

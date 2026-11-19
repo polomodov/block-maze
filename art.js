@@ -1,5 +1,5 @@
 import { drawPowerBehind, drawPowerFront, drawMonsterReaction, invisibleOpacity } from './maze-abilities.js?v=encore-1';
-import { drawMazeMonster } from './maze-monsters.js?v=encore-1';
+import { drawMazeMonster } from './maze-monsters.js?v=monster-motion-1';
 import { performanceAge } from './guitar.js?v=encore-1';
 import { drawChordWave, drawGuitarist, danceFloor, dancerNotes } from './maze-music.js?v=encore-1';
 import { configureBoard } from './display.js';
@@ -7,7 +7,7 @@ import { tileFinish, lightScene, drawGem, landmarkBounds, animateLandmark, board
 import { drawTempleFixture, templeFlames } from './temple-art.js?v=end-family-1';
 import { arcadeTile, drawArcadeLandscape, drawAttraction, drawRideLights } from './arcade-art.js?v=end-family-1';
 import { drawStoreLandscape, storeTile, drawStoreFixture, storeMonsterPixels, storeMonsterColors } from './store-art.js?v=end-family-1';
-import { drawMonsterEffects, showCharge, showSlow } from './monster-art.js?v=end-family-1';
+import { drawMonsterEffects, showCharge, showSlow } from './monster-art.js?v=monster-motion-1';
 import { drawWaterparkLandscape, drawWaterRide, waterparkTile, waterRipples, drawRideAccess, riderPosition } from './waterpark-art.js?v=end-family-1';
 import { drawNetherLandscape, netherTile, drawNetherFixture, drawNetherBridges, drawNetherThreats, netherMonsterPixels, netherMonsterColors } from './nether-art.js?v=end-family-1';
 import { drawCastleLandscape, castleTile, drawCastleFixture, castleLights, castleMonsterPixels, castleMonsterColors } from './castle-art.js?v=end-family-1';
@@ -681,13 +681,6 @@ export function drawBoard(canvas,state) {
     }
     ctx.restore();
     if (dancing) dancerNotes(ctx,x,y,songAge);
-    if (monster.type === 'creeper' && monster.windup > 0) {
-      // Two warm pulses on the preparing creeper leave the surrounding board steady.
-      ctx.save();
-      ctx.globalAlpha = .15 + .65 * Math.sin(Math.PI * 2 * monster.windup) ** 2;
-      drawMazeMonster(ctx,monster,x,y-hop,state.time,true);
-      ctx.restore();
-    }
     showCharge(ctx,monster,x,y-hop);
     drawMonsterReaction(ctx,monster,state.fear,x,y-hop,state.time);
   }

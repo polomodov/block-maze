@@ -1,5 +1,5 @@
 import { LEVELS } from './levels.js?v=end-family-1';
-import { advanceEffects, monsterSpeed, resetSkill, startDancing } from './monster-rules.js?v=guitar-solo-1';
+import { advanceEffects, BLAST_LIFETIME, monsterSpeed, resetSkill, startDancing } from './monster-rules.js?v=monster-motion-1';
 import { createDragon, flyDragon } from './dragon-rules.js?v=end-family-1';
 
 // Positions use tile centers as integer coordinates. All clocks use active game seconds.
@@ -95,6 +95,8 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     state.width = level.map[0].length;
     state.height = level.map.length;
     state.decorations = level.decorations;
+    // A burst stays at its original cell if the player respawns on the impact frame.
+    state.blastBursts = [];
     state.bridges = level.bridges ?? [];
     state.ride = level.ride ?? null;
     fields.clear();
@@ -292,6 +294,9 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
 
   function step(seconds) {
     state.time += seconds;
+    while (state.blastBursts.length && state.time - state.blastBursts[0].at >= BLAST_LIFETIME) {
+      state.blastBursts.shift();
+    }
     const speed = (state.boost > 0 ? 6.2 : 3.8) * (state.slow > 0 ? 0.65 : 1);
     state.slow = countdown(state.slow, seconds);
     state.levitation = countdown(state.levitation, seconds);
