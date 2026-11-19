@@ -1,6 +1,6 @@
-import { createGame } from './engine.js?v=family-2';
-import { LEVELS } from './levels.js?v=family-2';
-import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=family-2';
+import { createGame } from './engine.js?v=parks-1';
+import { LEVELS } from './levels.js?v=parks-1';
+import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=parks-1';
 
 const byId = (id) => document.getElementById(id);
 const lobby = byId('lobby');
@@ -22,13 +22,23 @@ const heroes = {
   mom: { name: 'Мама', action: 'Исчезнуть' },
   dad: { name: 'Папа', action: 'Сказать «Бу!»' },
 };
-const monsterNames = {
-  zombie: 'Зомби', creeper: 'Крипер', spider: 'Паук',
-  slime: 'Слизень', skeleton: 'Скелет',
+const monsters = {
+  zombie: { name: 'Зомби', hint: 'Упорно идёт за тобой по лабиринту.' },
+  creeper: { name: 'Крипер', hint: 'Готовится взорваться, когда ты рядом. Отбеги хотя бы на две клетки.' },
+  spider: { name: 'Паук', hint: 'Целится на клетку впереди тебя. Попробуй резко свернуть.' },
+  slime: { name: 'Слизень', hint: 'Прыгает рывками. Обходи его, пока он отдыхает между прыжками.' },
+  skeleton: { name: 'Скелет', hint: 'Целится и пускает стрелу по прямой. Сверни за угол, пока он готовится.' },
+  guardian: { name: 'Страж', hint: 'Охраняет свой участок. Выберись за его границу, и страж вернётся на пост.' },
+  drowned: { name: 'Утопленник', hint: 'Набирает скорость на прямых дорожках. Пользуйся поворотами.' },
+  elder_guardian: { name: 'Древний страж', hint: 'Готовит волну, которая замедляет героя рядом. Отбеги, пока волна заряжается.' },
+  witch: { name: 'Ведьма', hint: 'Оставляет лужи зелья. Обходи их, чтобы сохранить скорость.' },
+  enderman: { name: 'Эндермен', hint: 'Предупреждает о прыжке и переносится поближе к тебе. Держи свободным путь для отхода.' },
 };
 const descriptions = {
   temple: 'Собери изумруды и ускользни от монстров.',
   arcade: 'Ищи изумруды между каруселью и горкой.',
+  waterpark: 'Поверни вверх по стрелке у «Тайфуна» и съезжай на другую дорожку.',
+  store: 'Ищи изумруды между комнатами с мебелью и стеллажами с коробками.',
 };
 const directions = {
   ArrowUp: 'up', KeyW: 'up',
@@ -124,10 +134,10 @@ function selectedValue(group) {
 function showLevelPreview() {
   const levelId = selectedValue('level');
   const level = LEVELS[levelId];
-  const [first, second] = level.title.toUpperCase().split(' ');
+  const [first, ...rest] = level.title.toUpperCase().split(' ');
   lobby.dataset.level = levelId;
   setText(byId('title-first'), first);
-  setText(byId('title-second'), second);
+  setText(byId('title-second'), rest.join(' '));
   setText(byId('level-description'), descriptions[levelId]);
   document.title = level.title + ' · Блок Аркада';
   drawLandscape(byId('landscape'), levelId);
@@ -137,7 +147,7 @@ function showLevelPreview() {
     canvas.dataset.monster = type;
     canvas.setAttribute('aria-hidden', 'true');
     drawMonsterPortrait(canvas, type);
-    item.append(canvas, monsterNames[type]);
+    item.append(canvas, monsters[type].name);
     return item;
   });
   byId('monster-list').replaceChildren(...portraits);
@@ -153,7 +163,7 @@ function updateHud() {
   if (state.invisible > 0) abilityLabel = 'Невидима · ' + Math.ceil(state.invisible) + ' с';
   if (state.fear > 0) abilityLabel = 'Бу! · ' + Math.ceil(state.fear) + ' с';
   buttonText(abilityButton, abilityLabel);
-  abilityButton.disabled = state.status !== 'playing' || cooldown > 0;
+  abilityButton.disabled = state.status !== 'playing' || cooldown > 0 || state.rideRemaining > 0;
 }
 
 function updateScreen() {
@@ -167,11 +177,15 @@ function updateScreen() {
   updateHud();
   drawBoard(board, game.state);
   if (message.hidden) return;
+  const wins = {
+    temple: ['Храм пройден!', 'Все изумруды собраны. Впереди карусель и горка!', 'В игровой центр'],
+    arcade: ['Центр пройден!', 'Все изумруды собраны. Впереди водоворот «Тайфун»!', 'В аквапарк'],
+    waterpark: ['Аквапарк пройден!', 'Изумруды собраны. Дальше ищи их в мебельном магазине.', 'В магазин'],
+    store: ['Победа!', 'Все изумруды магазина собраны (' + totalGems + ').', 'Сыграть ещё'],
+  };
   const screens = {
     paused: ['Пауза', 'Лабиринт подождёт.', 'Продолжить'],
-    won: levelId === 'temple'
-      ? ['Храм пройден!', 'Все изумруды собраны. Впереди карусель и горка!', 'В игровой центр']
-      : ['Победа!', 'Все изумруды игрового центра собраны (' + totalGems + ').', 'Сыграть ещё'],
+    won: wins[levelId],
     lost: ['Попытки закончились', 'Собрано изумрудов: ' + game.state.collected + ' из ' + totalGems + '.', 'Попробовать ещё'],
   };
   const [title, copy, action] = screens[status];
@@ -257,8 +271,7 @@ abilityButton.addEventListener('click', activate);
 resumeButton.addEventListener('click', () => {
   if (game.state.status === 'paused') {
     resume();
-  } else if (game.state.status === 'won' && game.state.levelId === 'temple') {
-    game.nextLevel();
+  } else if (game.state.status === 'won' && game.nextLevel()) {
     swipe = undefined;
     document.title = LEVELS[game.state.levelId].title + ' · Блок Аркада';
     playNote(650, 0.2);
@@ -281,6 +294,16 @@ byId('menu').addEventListener('click', () => {
 
 byId('help').addEventListener('click', () => {
   resumeAfterHelp = game?.state.status === 'playing';
+  const levelId = game?.state.levelId ?? selectedValue('level');
+  byId('waterpark-help').hidden = levelId !== 'waterpark';
+  const hints = LEVELS[levelId].monsters.map(({ type }) => {
+    const item = document.createElement('li');
+    const name = document.createElement('strong');
+    name.textContent = monsters[type].name;
+    item.append(name, ' — ', monsters[type].hint);
+    return item;
+  });
+  byId('monster-hints').replaceChildren(...hints);
   help.showModal();
   if (resumeAfterHelp) pause();
 });
@@ -358,8 +381,9 @@ board.addEventListener('lostpointercapture', (event) => {
 });
 
 // Render the pixel artwork at its native resolution; CSS scales it to the screen.
-if (new URLSearchParams(location.search).get('level') === 'arcade') {
-  document.querySelector('input[name="level"][value="arcade"]').checked = true;
+const requestedLevel = new URLSearchParams(location.search).get('level');
+if (Object.hasOwn(LEVELS, requestedLevel)) {
+  document.querySelector(`input[name="level"][value="${requestedLevel}"]`).checked = true;
 }
 showLevelPreview();
 document.querySelectorAll('canvas[data-hero]').forEach((canvas) => drawPortrait(canvas, canvas.dataset.hero));

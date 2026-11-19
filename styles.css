@@ -185,8 +185,10 @@ main {
   text-shadow: 0 0.095em #23312b;
 }
 .banner h1 #title-second {
+  display: block;
   color: var(--lime);
 }
+.banner h1 #title-second:empty { display: none; }
 .banner p {
   margin: 12px 0 0;
   color: #e2ece0;
@@ -209,6 +211,7 @@ main {
 .level-options {
   display: flex;
   gap: 6px;
+  flex: 1;
 }
 .level-option {
   position: relative;
@@ -242,6 +245,16 @@ main {
 .level-option:has(input:checked) .level-number { color: inherit; }
 #lobby[data-level="arcade"] .banner { border-color: #6a526c; }
 #lobby[data-level="arcade"] #title-second { color: #ffbe8b; }
+#lobby[data-level="waterpark"] .banner { border-color: #66a9ad; }
+#lobby[data-level="waterpark"] h1 { color: #bdfff4; }
+#lobby:is([data-level="waterpark"], [data-level="store"]) .banner p { max-width: 32ch; }
+#lobby[data-level="store"] .banner { border-color: #ac986b; }
+#lobby[data-level="store"] #title-second { color: #ffd183; }
+#lobby[data-level="store"] #monster-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  row-gap: 10px;
+}
 .setup {
   display: grid;
   grid-template-columns: minmax(0, 2.4fr) minmax(260px, 1fr);
@@ -499,6 +512,7 @@ p {
   gap: 6px;
   color: #d2dad4;
   font-size: 0.88rem;
+  text-align: center;
 }
 .monsters canvas {
   background: #263332;
@@ -664,6 +678,16 @@ dialog p {
   line-height: 1.55;
   margin: 5px 0 15px;
 }
+.help-monsters {
+  border-block: 1px solid var(--border);
+  margin-bottom: 15px;
+}
+.help-monsters summary {
+  color: var(--lime);
+  cursor: pointer;
+  padding: 9px 0;
+  font-weight: 700;
+}
 .help-abilities {
   margin: 5px 0 15px;
   padding-left: 1.2em;
@@ -701,6 +725,10 @@ dialog .primary {
   .monsters canvas { width: 40px; }
 }
 @media (max-width: 770px) {
+  .level-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .bar-inner,
   main {
     width: calc(100% - 30px);
@@ -770,6 +798,9 @@ dialog .primary {
   .banner:after {
     background: linear-gradient(90deg, #0d2022d9, transparent 95%);
   }
+  #lobby[data-level="waterpark"] .banner:after {
+    background: linear-gradient(90deg, #062a34ef, #0a3242ba 50%, transparent);
+  }
   .setup {
     display: block;
     margin-top: 22px;
@@ -780,8 +811,17 @@ dialog .primary {
   }
   .levels { display: block; padding: 8px; }
   .levels strong { position: absolute; clip-path: inset(50%); }
-  .level-options { width: 100%; }
-  .level-option { flex: 1; gap: 5px; padding: 7px 3px; font-size: 0.85rem; min-height: 42px; }
+  #lobby[data-level="store"] #monster-list {
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  }
+  .level-option {
+    gap: 5px;
+    padding: 7px 3px;
+    font-size: 0.85rem;
+    line-height: 1.2;
+    text-align: center;
+    min-height: 44px;
+  }
   .level-number { font-size: 0.55rem; }
   .heroes {
     grid-template-columns: repeat(2, minmax(0, 1fr));

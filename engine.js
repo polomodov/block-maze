@@ -1,4 +1,5 @@
-import { LEVELS } from './levels.js?v=family-2';
+import { LEVELS } from './levels.js?v=parks-1';
+import { advanceEffects, monsterSpeed, resetSkill } from './monster-rules.js?v=parks-1';
 
 // Positions use tile centers as integer coordinates. All clocks use active game seconds.
 const STEPS = {
@@ -60,11 +61,19 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     return distances;
   }
 
+  function distance(x, y, tx, ty) {
+    return distancesFrom(x, y)[tileKey(tx, ty)];
+  }
+
   function resetPositions() {
     state.player = actor(level.start);
     state.monsters = level.monsters.map(beast => ({
       ...actor(beast.start), type: beast.type, stun: 0,
     }));
+    state.monsters.forEach(resetSkill);
+    state.effects = [];
+    state.slow = 0;
+    state.rideRemaining = 0;
     state.boost = 0;
     state.attack = 0;
     state.fear = 0;
@@ -80,6 +89,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     state.width = level.map[0].length;
     state.height = level.map.length;
     state.decorations = level.decorations;
+    state.ride = level.ride ?? null;
     fields.clear();
     state.gems = new Set();
     for (let y = 0; y < state.height; y++) {
@@ -136,6 +146,13 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
   }
 
   function steerPlayer(player, options) {
+    const ride = state.ride;
+    if (ride && queued === ride.direction && player.x === ride.entry[0] && player.y === ride.entry[1]) {
+      state.rideRemaining = ride.duration;
+      queued = null;
+      waiting = false;
+      return null;
+    }
     if (options.includes(queued)) {
       const dir = queued;
       queued = null;
@@ -154,7 +171,9 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     let x = Math.round(state.player.x);
     let y = Math.round(state.player.y);
     // Patrol breaks open escape routes. The spider occasionally aims one tile ahead.
-    if (state.invisible > 0 || (state.fear === 0 && (state.time + index * 3) % 19 > 13)) {
+    const guarding = beast.type === 'guardian' && distance(x, y, ...beast.patrol) > 5;
+    const patrolTime = beast.type !== 'zombie' && beast.type !== 'guardian' && (state.time + index * 3) % 19 > 13;
+    if (state.invisible > 0 || (state.fear === 0 && (guarding || patrolTime))) {
       [x, y] = beast.patrol;
     } else if (state.fear === 0 && beast.type === 'spider' && state.player.dir) {
       const [dx, dy] = STEPS[state.player.dir];
@@ -191,7 +210,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
   }
 
   function activate() {
-    if (state.status !== 'playing' || state.cooldown > 0) return false;
+    if (state.status !== 'playing' || state.cooldown > 0 || state.rideRemaining > 0) return false;
     state.cooldown = 30;
     switch (state.hero) {
       case 'kirill':
@@ -202,9 +221,11 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
         hitNearby();
         break;
       case 'mom':
+        state.slow = 0;
         state.invisible = 4;
         break;
       case 'dad': {
+        state.slow = 0;
         state.fear = 3;
         waiting = false;
         const distances = distancesFrom(Math.round(state.player.x), Math.round(state.player.y));
@@ -224,28 +245,42 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
 
   function step(seconds) {
     state.time += seconds;
-    const speed = state.boost > 0 ? 6.2 : 3.8;
+    const speed = (state.boost > 0 ? 6.2 : 3.8) * (state.slow > 0 ? 0.65 : 1);
+    state.slow = countdown(state.slow, seconds);
     state.cooldown = countdown(state.cooldown, seconds);
     state.boost = countdown(state.boost, seconds);
     state.invulnerable = countdown(state.invulnerable, seconds);
-    move(state.player, seconds * speed, steerPlayer, collect);
+    if (state.rideRemaining === 0) move(state.player, seconds * speed, steerPlayer, collect);
+    if (state.rideRemaining > 0) {
+      state.rideRemaining = countdown(state.rideRemaining, seconds);
+      if (state.rideRemaining === 0) {
+        [state.player.x, state.player.y] = state.ride.exit;
+        collect(state.player.x, state.player.y);
+      }
+    }
     if (state.status === 'won') return;
     state.monsters.forEach((monster, index) => {
-      if (monster.stun > 0) {
+      if (waiting) {
         monster.stun = countdown(monster.stun, seconds);
-      } else if (!waiting) {
-        move(monster, seconds * level.monsters[index].speed,
+        return;
+      }
+      const definition = level.monsters[index];
+      const speedFactor = monsterSpeed(state, index, definition, seconds, isFloor, distance);
+      monster.stun = countdown(monster.stun, seconds);
+      if (speedFactor > 0) {
+        move(monster, seconds * definition.speed * speedFactor,
           (actor, options) => steerMonster(actor, options, index));
       }
     });
     if (state.attack > 0) hitNearby();
+    const effectHit = advanceEffects(state, seconds, isFloor);
     state.attack = countdown(state.attack, seconds);
     state.invisible = countdown(state.invisible, seconds);
     state.fear = countdown(state.fear, seconds);
-    if (waiting || state.invulnerable > 0 || state.invisible > 0 || state.fear > 0) return;
-    const touched = state.monsters.some(monster => monster.stun === 0 &&
+    if (waiting || state.rideRemaining > 0 || state.invulnerable > 0 || state.invisible > 0 || state.fear > 0) return;
+    const touched = state.monsters.some(monster => monster.type !== 'creeper' && monster.stun === 0 &&
       Math.hypot(monster.x - state.player.x, monster.y - state.player.y) < 0.58);
-    if (!touched) return;
+    if (!touched && !effectHit) return;
     if (--state.lives === 0) {
       state.status = 'lost';
       return;
@@ -257,8 +292,8 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
   return {
     state, turn, activate,
     nextLevel() {
-      if (state.status !== 'won' || state.levelId !== 'temple') return false;
-      loadLevel('arcade');
+      if (state.status !== 'won' || !level.next) return false;
+      loadLevel(level.next);
       state.status = 'playing';
       return true;
     },

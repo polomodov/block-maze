@@ -34,9 +34,46 @@ const arcadeMap = Object.freeze([
   '#######################',
 ]);
 
+const waterparkMap = Object.freeze([
+  '#######################',
+  '#.....................#',
+  '#.#####..######.#####.#',
+  '#.....#..######.#.....#',
+  '#.###.#..######.#.###.#',
+  '#...#....######.....#.#',
+  '#.....#.........###.#.#',
+  '#.#####.#.####........#',
+  '#.#####.#..#...#####..#',
+  '#.#####.#..#.#.#####..#',
+  '#..........#.#.#####..#',
+  '#.###.###.............#',
+  '#.#.....#.###.#######.#',
+  '#.....................#',
+  '#######################',
+]);
+
+const storeMap = Object.freeze([
+  '#######################',
+  '#.....................#',
+  '#..######.#.#.#######.#',
+  '#..######.#.#.........#',
+  '#..######.#...#####.#.#',
+  '#.........#.#.#####.#.#',
+  '#.#####.....#.#####.#.#',
+  '#...#...#.##........#.#',
+  '#.#...###....#####....#',
+  '#.#.######.#.....#.##.#',
+  '#.#.######.#.###.#....#',
+  '#.#.######.#.#.....##.#',
+  '#..........#...####...#',
+  '#.....................#',
+  '#######################',
+]);
+
 export const LEVELS = {
   temple: {
     title: 'Храм изумруда',
+    next: 'arcade',
     map: templeMap,
     start: [11, 11],
     monsters: [
@@ -48,6 +85,7 @@ export const LEVELS = {
   },
   arcade: {
     title: 'Игровой центр',
+    next: 'waterpark',
     map: arcadeMap,
     start: [11, 13],
     monsters: [
@@ -61,6 +99,41 @@ export const LEVELS = {
       { type: 'carousel', x: 2, y: 2, width: 5, height: 3 },
       { type: 'slide', x: 16, y: 3, width: 5, height: 3 },
       { type: 'claw', x: 8, y: 8, width: 4, height: 3 },
+    ],
+  },
+  waterpark: {
+    title: 'Аквапарк',
+    next: 'store',
+    map: waterparkMap,
+    start: [11, 13],
+    monsters: [
+      { type: 'guardian', start: [1, 1], patrol: [5, 10], speed: 2.40 },
+      { type: 'drowned', start: [21, 7], patrol: [21, 13], speed: 2.10 },
+      { type: 'elder_guardian', start: [15, 1], patrol: [1, 6], speed: 2.25 },
+    ],
+    decorations: [
+      { type: 'typhoon', x: 9, y: 2, width: 6, height: 4 },
+      { type: 'water_slide', x: 2, y: 7, width: 5, height: 3 },
+      { type: 'wave_pool', x: 15, y: 8, width: 5, height: 3 },
+    ],
+    ride: { entry: [11, 6], direction: 'up', exit: [11, 1], duration: 1 },
+  },
+  store: {
+    title: 'Мебельный магазин',
+    next: null,
+    map: storeMap,
+    start: [11, 13],
+    monsters: [
+      { type: 'spider', start: [1, 1], patrol: [2, 5], speed: 2.25 },
+      { type: 'zombie', start: [21, 1], patrol: [21, 13], speed: 1.75 },
+      { type: 'skeleton', start: [1, 8], patrol: [3, 12], speed: 1.95 },
+      { type: 'witch', start: [13, 4], patrol: [15, 7], speed: 1.80 },
+      { type: 'enderman', start: [19, 6], patrol: [12, 11], speed: 2.05 },
+    ],
+    decorations: [
+      { type: 'living_room', x: 3, y: 2, width: 6, height: 3 },
+      { type: 'show_kitchen', x: 14, y: 4, width: 5, height: 3 },
+      { type: 'warehouse', x: 4, y: 9, width: 6, height: 3 },
     ],
   },
 };

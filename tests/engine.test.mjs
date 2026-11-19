@@ -95,7 +95,7 @@ test('hits cost one life each and respawning preserves collected gems', () => {
   assert.equal(game.state.collected, 1);
   for (let lives = 2; lives >= 0; lives--) {
     const { state } = game;
-    const monster = state.monsters[0];
+    const monster = state.monsters.find(m => m.type === 'zombie');
     Object.assign(monster, { x: state.player.x, y: state.player.y, target: null });
     game.turn('right');
     game.update(1 / 60);
@@ -135,7 +135,7 @@ test('invisible Mom can collect gems while the creeper heads to patrol', () => {
     game.start();
     Object.assign(game.state.player, { x: 13, y: 11 });
     const creeper = game.state.monsters[0];
-    Object.assign(creeper, { x: 11, y: 11 });
+    Object.assign(creeper, { x: 10, y: 11 });
     if (invisible) game.activate();
     game.turn('right');
     game.update(0.1);
@@ -173,7 +173,7 @@ for (const [hero, effect, duration] of [['mom', 'invisible', 4], ['dad', 'fear',
     game.resume();
     game.turn('right');
     game.update(duration - 0.02);
-    const monster = state.monsters[0];
+    const monster = state.monsters.find(m => m.type === 'zombie');
     Object.assign(monster, { x: state.player.x, y: state.player.y, dir: null, target: null });
     game.update(0.01);
     assert.equal(state.lives, 3);
@@ -186,7 +186,7 @@ for (const [hero, effect, duration] of [['mom', 'invisible', 4], ['dad', 'fear',
   });
 }
 
-test('finishing the temple advances once with remaining lives and ability cooldown', () => {
+test('the full campaign carries remaining lives and cooldown into each next level', () => {
   const game = createGame('mom');
   const { state } = game;
   assert.equal(game.nextLevel(), false);
@@ -201,19 +201,69 @@ test('finishing the temple advances once with remaining lives and ability cooldo
     game.update(1);
     assert.equal(state.status, 'won');
   }
-  collectLast();
-  const cooldown = state.cooldown;
-  assert.ok(game.nextLevel());
-  assert.equal(state.levelId, 'arcade');
-  assert.equal(state.status, 'playing');
-  assert.equal(state.hero, 'mom');
-  assert.equal(state.lives, 2);
-  assert.equal(state.cooldown, cooldown);
-  assert.equal(state.invisible, 0);
-  assert.equal(state.collected, 0);
-  assert.equal(state.gems.size, state.totalGems);
-  assert.deepEqual(state.monsters.map(m => m.type), ['slime', 'skeleton', 'creeper', 'spider']);
+  for (const next of ['arcade', 'waterpark', 'store']) {
+    collectLast();
+    const cooldown = state.cooldown;
+    assert.ok(game.nextLevel());
+    assert.equal(state.levelId, next);
+    assert.equal(state.status, 'playing');
+    assert.equal(state.hero, 'mom');
+    assert.equal(state.lives, 2);
+    assert.equal(state.cooldown, cooldown);
+    assert.equal(state.invisible, 0);
+    assert.equal(state.collected, 0);
+    assert.equal(state.gems.size, state.totalGems);
+    assert.deepEqual(state.monsters.map(m => m.type), LEVELS[next].monsters.map(m => m.type));
+    assert.equal(game.nextLevel(), false);
+  }
   collectLast();
   assert.equal(game.nextLevel(), false);
   assert.equal(state.status, 'won');
+});
+
+test('Typhoon accepts a queued turn, pauses mid-ride and collects at the far exit', () => {
+  const game = createGame('maxim', 'waterpark');
+  const { state } = game;
+  const { entry, exit, direction, duration } = state.ride;
+  game.start();
+  Object.assign(state.player, { x: entry[0] - 1, y: entry[1] });
+  game.turn('right');
+  game.update(0.1);
+  game.turn(direction);
+  game.update(0.2);
+  assert.ok(state.rideRemaining > 0);
+  assert.equal(game.activate(), false);
+  game.pause();
+  const remaining = state.rideRemaining;
+  game.update(3);
+  assert.equal(state.rideRemaining, remaining);
+  game.resume();
+  const exitGem = exit[1] * state.width + exit[0];
+  state.gems.add(exitGem);
+  game.update(duration);
+  assert.equal(state.rideRemaining, 0);
+  assert.deepEqual([state.player.x, state.player.y], exit);
+  assert.ok(!state.gems.has(exitGem));
+  game.update(0.1);
+  assert.equal(state.rideRemaining, 0);
+});
+
+test('Typhoon lets the hero walk past and checks monster contact upon landing', () => {
+  const game = createGame('kirill', 'waterpark');
+  const { state } = game;
+  const { entry, exit, direction, duration } = state.ride;
+  game.start();
+  Object.assign(state.player, { x: entry[0] - 1, y: entry[1] });
+  game.turn('right');
+  game.update(2 / 3.8);
+  assert.equal(state.rideRemaining, 0);
+  assert.equal(state.player.x, entry[0] + 1);
+  Object.assign(state.player, { x: entry[0], y: entry[1], dir: null, target: null });
+  game.turn(direction);
+  game.update(duration - 0.01);
+  assert.equal(state.lives, 3);
+  Object.assign(state.monsters[0], { x: exit[0], y: exit[1], dir: null, target: null });
+  game.update(0.01);
+  assert.equal(state.lives, 2);
+  assert.equal(state.rideRemaining, 0);
 });

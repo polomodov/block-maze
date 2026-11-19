@@ -1,4 +1,7 @@
-import { arcadeTile, drawArcadeLandscape, drawAttraction, drawRideLights } from './arcade-art.js?v=family-2';
+import { arcadeTile, drawArcadeLandscape, drawAttraction, drawRideLights } from './arcade-art.js?v=parks-1';
+import { drawStoreLandscape, storeTile, drawStoreFixture, storeMonsterPixels, storeMonsterColors } from './store-art.js?v=parks-1';
+import { drawMonsterEffects, showCharge, showSlow } from './monster-art.js?v=parks-1';
+import { drawWaterparkLandscape, drawWaterRide, waterparkTile, waterRipples, drawRideAccess, riderPosition } from './waterpark-art.js?v=parks-1';
 
 // The artwork is drawn on integer grids and scaled by the browser as pixel art.
 function surface(canvas, width, height) {
@@ -106,10 +109,17 @@ function temple(ctx, x, ground, scale) {
   ctx.restore();
 }
 
+const levelArt = {
+  arcade: { landscape: drawArcadeLandscape, tile: arcadeTile, fixture: drawAttraction, animate: drawRideLights },
+  waterpark: { landscape: drawWaterparkLandscape, tile: waterparkTile, fixture: drawWaterRide, animate: waterRipples },
+  store: { landscape: drawStoreLandscape, tile: storeTile, fixture: drawStoreFixture },
+};
+
 export function drawLandscape(canvas, levelId = 'temple') {
   const ctx = surface(canvas, 480, 100);
-  if (levelId === 'arcade') {
-    drawArcadeLandscape(ctx);
+  const theme = levelArt[levelId];
+  if (theme) {
+    theme.landscape(ctx);
     return;
   }
   box(ctx, '#7ca6a2', 0, 0, 480, 100);
@@ -379,6 +389,25 @@ export function drawPortrait(canvas, hero) {
 }
 
 const spritePixels = {
+  ...storeMonsterPixels,
+  guardian: [
+    '........54......','...45...44..54..','...44qqqqqq445..','....q313331q4...',
+    '.544q1131112q...','....q1666612q..2','..qqq6677611qq12','..q2q6677612q13q',
+    '.54qq1111112qq2.','....q1211212q.1.','...4q222222q....','..45.qqqqqq44...',
+    '....44..44..54..','....5...54......','................','................'
+  ],
+  elder_guardian: [
+    '..8..98...98...8','..98.89...89..89','...9qqqqqqqqq89.','.88q9IIBB9BB8q..',
+    '..9qI9IBBBB98q..','qqqqB666666B8q.8','q89q666776698q98','q98q6667766B8q9q',
+    'qq9qBBB66BBB8q9q','.9.qBII9B9B98q..','..9qBB98B9898q..','.899q8888888q9..',
+    '...9.qqqqqqq.89.','..89.89...98..8.','.....8.....9....','................'
+  ],
+  drowned: [
+    '....qqqqqqqq....','...q2h133311q...','...q1g113312q...','...q16611662q...',
+    '...q13111112q..3','...qg1122212q.333','....qg11112q..333','..qqqlggvllqq..3',
+    '.q12qtgvvllq12q3','.q2gqtvvgllq22q3','.qqqqvlgglvqqqq3','....qlllvlvq...3',
+    '....q12qq21q...3','....q12qq22q....','...q222qq222q...','...qqqqqqqqqq...'
+  ],
   creeper: [
     '    qqqqqqqq    ','   qhhhhgghhq   ','   qghggghhgq   ','   qghoogoogq   ',
     '   qggoogoogq   ','   qgggooggdq   ','   qhgooooddq   ','   qggooododq   ',
@@ -430,11 +459,16 @@ const spritePixels = {
 };
 
 const monsterColors = {
+  ...storeMonsterColors,
+  1:'#41a89e', 2:'#387579', 3:'#82d9c2', 4:'#dc7f43', 5:'#ffc96b',
+  6:'#faf1c9', 7:'#c24b46', 8:'#766d61', 9:'#c5b597',
   q:'#13292b', h:'#a7d471', g:'#73ae55', d:'#477649', o:'#243c36', t:'#66b9b1',
   i:'#c7d2cf', I:'#f2f0df', B:'#95a5a9', G:'#6bcd82', L:'#bcf6a2',
   u:'#4daa73', U:'#3e8867', x:'#376d56',
   v:'#358982', l:'#5e6490', p:'#63505d', b:'#352f42', a:'#846975', r:'#e77745', w:'#ffaf65'
 };
+
+const creeperFlash = { q: '#485052', h: '#fff9cc', g: '#fff3af', d: '#eddfa3', o: '#807968' };
 
 const baseHeroColors = {
   q:'#232d36', h:'#875135', l:'#b77c46', d:'#4e3a30', f:'#eeb789', o:'#293940',
@@ -541,11 +575,12 @@ function background(canvas,state) {
   const layer = document.createElement('canvas');
   const ctx = surface(layer,state.width*TILE,state.height*TILE);
   const rand = randomSequence(12937);
+  const theme = levelArt[state.levelId];
   for (let row=0;row<state.height;row++) {
     for (let col=0;col<state.width;col++) {
       const variation = Math.floor(rand()*1031);
-      if (state.levelId === 'arcade') {
-        arcadeTile(ctx,state.map,col,row,TILE,variation);
+      if (theme) {
+        theme.tile(ctx,state.map,col,row,TILE,variation);
       } else if (state.map[row][col] === '#') {
         wallTile(ctx,state,col,row,variation);
       } else {
@@ -554,7 +589,8 @@ function background(canvas,state) {
       }
     }
   }
-  for (const attraction of state.decorations || []) drawAttraction(ctx,attraction,TILE);
+  for (const attraction of state.decorations) theme.fixture(ctx,attraction,TILE);
+  if (state.ride) drawRideAccess(ctx, state.ride, TILE);
   backgrounds.set(canvas,{canvas:layer,map:state.map});
   return layer;
 }
@@ -595,14 +631,29 @@ function drawBoo(ctx, x, y) {
 export function drawBoard(canvas,state) {
   const ctx = surface(canvas,state.width*TILE,state.height*TILE);
   ctx.drawImage(background(canvas,state),0,0);
-  for (const ride of state.decorations || []) drawRideLights(ctx,ride,TILE,state.time);
+  const animateRide = levelArt[state.levelId]?.animate;
+  if (animateRide) {
+    for (const ride of state.decorations) animateRide(ctx,ride,TILE,state.time);
+  }
+  drawMonsterEffects(ctx,state);
   for (const index of state.gems) {
     emerald(ctx,(index%state.width+0.5)*TILE,(Math.floor(index/state.width)+0.5)*TILE);
   }
   for (const monster of state.monsters) {
     const [x,y]=actorPos(monster);
     box(ctx,'#172927',x-6,y+6,13,3);
-    sprite(ctx,monster.type,monsterColors,x-8,y-8,monster.dir==='left');
+    const jumpPhase = state.time % .9;
+    const hop = monster.type === 'slime' && !monster.stun && jumpPhase < .55
+      ? Math.round(3 * Math.sin(Math.PI * jumpPhase / .55)) : 0;
+    sprite(ctx,monster.type,monsterColors,x-8,y-8-hop,monster.dir==='left');
+    if (monster.type === 'creeper' && monster.windup > 0) {
+      // Two warm pulses on the preparing creeper leave the surrounding board steady.
+      ctx.save();
+      ctx.globalAlpha = .15 + .65 * Math.sin(Math.PI * 2 * monster.windup) ** 2;
+      sprite(ctx,'creeper',creeperFlash,x-8,y-8,monster.dir==='left');
+      ctx.restore();
+    }
+    showCharge(ctx,monster,x,y);
     if (state.fear > 0) {
       box(ctx,'#8de5f5',x+6,y-10,2,3);
       box(ctx,'#d3f8ff',x+6,y-10,1,1);
@@ -614,7 +665,7 @@ export function drawBoard(canvas,state) {
       box(ctx,'#ffc867',x+3,y-10,2,2);
     }
   }
-  const [x,y]=actorPos(state.player);
+  const [x,y] = state.rideRemaining > 0 ? riderPosition(state,TILE) : actorPos(state.player);
   box(ctx,'#192d29',x-6,y+6,13,3);
   if (state.boost > 0) {
     const vector = {up:[0,1],down:[0,-1],left:[1,0],right:[-1,0]}[state.player.dir] || [-1,0];
@@ -636,6 +687,7 @@ export function drawBoard(canvas,state) {
       box(ctx,'#d4b7fc',x+dx,y+dy-drift,2,1);
     }
   }
+  if (state.slow > 0) showSlow(ctx,x,y,state.time);
   if (state.fear > 0) drawBoo(ctx,x,y);
   if (state.attack>0) {
     const points = [[-9,-6],[-10,0],[-8,6],[-3,9],[4,9],[9,5],[10,-1],[8,-6]];
