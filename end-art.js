@@ -1,3 +1,6 @@
+import { drawDragon, drawDragonWarning, drawDragonCloud } from './dragon-art.js?v=dragon-flight-1';
+import { BREATH_LIFETIME, BREATH_REACH } from './dragon-rules.js?v=dragon-flight-1';
+
 // Obsidian towers rise above the End's pale, broken islands. The same silhouettes
 // appear in the panorama and in the three landmarks inside the playable maze.
 const obsidian = '#29243b';
@@ -83,58 +86,6 @@ function island(ctx, x, y, width, depth, far = false) {
   ctx.restore();
 }
 
-// Side view. The wing tips lift and fold against a fixed chest and a segmented tail.
-function dragonShape(ctx, wing) {
-  const tip = Math.round(wing * 9), tail = Math.round(wing * 2);
-  polygon(ctx, '#3d304e', [[-10,-2],[-2,-10],[6,-16+tip],[6,-21+tip],[15,-25+tip],
-    [30,-27+tip],[23,-21+tip],[20,-15+tip],[15,-16+tip],[11,-9],[6,-10],[2,-4],[-4,1]]);
-  polygon(ctx, '#816594', [[-4,-4],[5,-15+tip],[6,-21+tip],[16,-25+tip],[30,-27+tip],
-    [18,-23+tip],[10,-20+tip],[9,-14+tip],[2,-6]]);
-  polygon(ctx, '#61496e', [[8,-17+tip],[15,-22+tip],[25,-25+tip],[19,-21+tip],[18,-17+tip],[14,-18+tip]]);
-  polygon(ctx, '#302a3c', [[-14,1],[-29,3],[-38,5+tail],[-53,2+tail],[-43,7+tail],[-36,8+tail],[-23,5],[-10,6]]);
-  polygon(ctx, '#867791', [[-51,3+tail],[-37,5+tail],[-26,3],[-18,2],[-23,4],[-37,7+tail]]);
-  polygon(ctx, '#292433', [[-16,-1],[-7,-5],[6,-4],[13,-1],[21,-5],[26,-8],[30,-6],[24,-2],[17,2],[8,4],[2,6],[-8,7],[-16,4]]);
-  rect(ctx, '#594e64', -13, -1, 12, 2);
-  polygon(ctx, '#62566c', [[4,3],[13,0],[23,-5],[27,-8],[22,-3],[14,2],[6,5]]);
-  for (const [x,y] of [[-24,2],[-18,1],[8,-3],[15,-4],[20,-6]]) {
-    rect(ctx, '#aa9aaf', x, y-2, 2, 2);
-  }
-  polygon(ctx, '#242231', [[3,0],[-4,-16],[-11,-23+tip],[-23,-29+tip],[-35,-28+tip],
-    [-27,-22+tip],[-24,-14+tip],[-17,-15+tip],[-13,-7],[-8,-9],[-3,0]]);
-  polygon(ctx, '#63466e', [[0,-4],[-6,-16],[-15,-23+tip],[-29,-26+tip],
-    [-24,-21+tip],[-23,-16+tip],[-18,-18+tip],[-13,-10],[-8,-12]]);
-  polygon(ctx, '#c69bc8', [[2,-3],[-4,-17],[-13,-25+tip],[-23,-29+tip],[-35,-28+tip],
-    [-22,-27+tip],[-13,-23+tip],[-6,-16]]);
-  polygon(ctx, '#8b7594', [[-14,-22+tip],[-22,-25+tip],[-17,-17+tip]]);
-  rect(ctx, '#292432', -11, 5, 3, 7);
-  rect(ctx, '#72657c', -13, 10, 4, 2);
-  rect(ctx, '#302635', 1, 4, 3, 5);
-  rect(ctx, '#83748e', -1, 8, 4, 2);
-  rect(ctx, '#272232', 24, -11, 10, 8);
-  rect(ctx, '#a387ad', 24, -11, 10, 2);
-  rect(ctx, '#b1a3b6', 25, -14, 2, 4);
-  rect(ctx, '#8f7a9a', 29, -13, 2, 2);
-  rect(ctx, '#443749', 33, -8, 7, 4);
-  rect(ctx, '#292232', 33, -5, 8, 3);
-  rect(ctx, '#ac83ac', 35, -7, 4, 1);
-  rect(ctx, '#d17ee2', 29, -8, 5, 3);
-  rect(ctx, '#ffdcff', 32, -8, 1, 1);
-}
-
-// Reuse each wing pose so the mobile canvas only blits a small, crisp sprite per frame.
-const dragonFrames = new Map();
-function dragonFrame(pose) {
-  if (dragonFrames.has(pose)) return dragonFrames.get(pose);
-  const image = document.createElement('canvas');
-  image.width = 96;
-  image.height = 53;
-  const ctx = image.getContext('2d');
-  ctx.translate(54,40);
-  dragonShape(ctx,pose/4);
-  dragonFrames.set(pose,image);
-  return image;
-}
-
 function chorus(ctx, x, base, height) {
   const top = base - height;
   rect(ctx, '#68516e', x, top, 4, height);
@@ -183,11 +134,7 @@ export function drawEndLandscape(ctx) {
   island(ctx, 405, 88, 95, 19);
   spire(ctx, 450, 85, 17, 51);
   chorus(ctx, 423, 85, 17);
-  ctx.save();
-  ctx.translate(323, 37);
-  ctx.scale(1.19,1.19);
-  ctx.drawImage(dragonFrame(1),-54,-40);
-  ctx.restore();
+  drawDragon(ctx, { x: 323, y: 37, dir: 1, pitch: -.06, dive: 0, breath: 0, time: .22, scale: 1.12 });
 }
 
 // Floor is cool, nearly black stone. Tiny edge reflections leave the centers clear for gems.
@@ -359,48 +306,26 @@ export const endMonsterPixels = {
   ],
 };
 
-function warning(ctx, x, y, tile, time) {
-  const size = 5 + Math.floor(time * 4) % 2;
-  const cx = Math.round((x+.5)*tile), cy = Math.round((y+.5)*tile);
-  for (const dx of [-1,1]) for (const dy of [-1,1]) {
-    const px = cx + size * dx, py = cy + size * dy;
-    rect(ctx, '#52264f', px-2,py-2,5,5);
-    rect(ctx, '#ffbaf6', dx<0 ? px : px-2,py,3,1);
-    rect(ctx, '#ffbaf6', px,dy<0 ? py : py-2,1,3);
-  }
-}
-
-function cloud(ctx, effect, tile, time) {
-  const cx=(effect.x+.5)*tile, cy=(effect.y+.5)*tile, age=3-effect.remaining;
-  // Clip each billow to the occupied tile so safe neighbouring corridors stay readable.
-  ctx.save();
-  ctx.beginPath();ctx.rect(cx-tile/2,cy-tile/2,tile,tile);ctx.clip();
-  ctx.globalAlpha*=Math.min(1,.58+age*5,.50+effect.remaining*2);
-  const seed=effect.x*2.7+effect.y;
-  for(let i=0;i<5;i++){
-    const angle=seed+i*1.26+age*.82, r=2.5+i%2;
-    const x=cx+Math.cos(angle)*r, y=cy+Math.sin(angle)*r*.7;
-    const radius=3.6+.95*Math.sin(age*3+i)+Math.min(age,1)*.75;
-    ctx.beginPath();ctx.ellipse(x,y,radius+.65,radius,0,0,Math.PI*2);
-    ctx.fillStyle=i%2?'#a85ac3':'#794e9d';ctx.fill();
-    ctx.beginPath();ctx.arc(x-.4,y-.5,radius*.72,3.6,5);
-    ctx.strokeStyle='#e59be3';ctx.lineWidth=.85;ctx.stroke();
-  }
-  for(let i=0;i<3;i++){
-    const t=(age*1.4+i/3)%1;
-    ctx.fillStyle='#ffd7fb';
-    ctx.fillRect(cx+Math.sin(seed+i*3.1+t)*5.4,cy-t*6.8,1.3,1.2);
-  }
-  ctx.restore();
-}
-
-export function drawEndThreats(ctx,state,tile) {
+export function drawEndThreats(ctx, state, tile) {
   const dragon = state.dragon;
-  if (dragon && dragon.phase !== 'patrol') {
-    for (const [x,y] of dragon.cells) warning(ctx,x,y,tile,state.time);
+  if (dragon?.cells.length) {
+    const progress = dragon.phase === 'warning' ? dragon.age / (dragon.age + dragon.windup) : 1;
+    for (const [x, y] of dragon.cells) {
+      drawDragonWarning(ctx, (x + .5) * tile, (y + .5) * tile,
+        tile * .46, tile * .42, progress, state.time);
+    }
   }
   for (const effect of state.effects) {
-    if (effect.type === 'dragon_breath') cloud(ctx,effect,tile,state.time);
+    if (effect.type === 'dragon_breath') {
+      const { x, y, remaining } = effect;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x * tile, y * tile, tile, tile);
+      ctx.clip();
+      drawDragonCloud(ctx, (x + .5) * tile, (y + .5) * tile, tile * .50, tile * .49,
+        BREATH_LIFETIME - remaining, BREATH_LIFETIME, x * 3 + y);
+      ctx.restore();
+    }
     if (effect.type === 'shulker_bolt') {
       const x = Math.round((effect.x+.5)*tile), y = Math.round((effect.y+.5)*tile);
       const offset = {left:[1,0], right:[-1,0], up:[0,1], down:[0,-1]}[effect.dir] || [0,0];
@@ -413,30 +338,37 @@ export function drawEndThreats(ctx,state,tile) {
   }
 }
 
-export function drawFlyingDragon(ctx,state,tile) {
+export function drawFlyingDragon(ctx, state, tile) {
   const dragon = state.dragon;
   if (!dragon) return;
-  const x=(dragon.x+.5)*tile, y=(dragon.y+.5)*tile;
-  const wing=Math.sin(state.time*3.6);
+  const dir = dragon.dir === 'right' ? 1 : -1;
+  const x = (dragon.x + .5) * tile, floorY = (dragon.y + .5) * tile;
+  const scale = 1.17 - dragon.altitude * .14;
   ctx.save();
-  ctx.translate(x,y-3+wing*.7);
-  const scale=.64;
-  ctx.scale(dragon.dir==='left'?-scale:scale,scale);
-  ctx.rotate(wing*.025);
-  ctx.drawImage(dragonFrame(Math.round(wing*4)),-54,-40);
-  if (dragon.phase==='breathing') {
-    const ahead=dragon.cells.reduce((nearest,[tx])=>Math.min(nearest,Math.abs(tx-dragon.x)),Infinity);
-    const breath=Math.max(0,1-ahead/4.6);
-    if (breath>0) {
-      const glow=ctx.createRadialGradient(38,-4,0,38,-4,8);
-      glow.addColorStop(0,'rgba(255,217,255,'+breath+')');glow.addColorStop(1,'rgba(194,105,247,0)');
-      ctx.fillStyle=glow;ctx.fillRect(30,-12,16,16);
-      for(let i=0;i<5;i++){
-        const t=(state.time*2.7+i/5)%1;
-        ctx.beginPath();ctx.ellipse(39+t*11,-3+t*t*14+Math.sin(t*5+i)*1.15,1.4+2*t,1.2+2*t,0,0,Math.PI*2);
-        ctx.fillStyle='rgba(227,147,244,'+((1-t)*.8*breath)+')';ctx.fill();
-      }
+  ctx.fillStyle = `rgba(27,14,40,${.25 - dragon.altitude * .06})`;
+  ctx.beginPath();
+  ctx.ellipse(x, floorY, tile * 1.12 * scale, tile * .27 * scale, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // A short jet reaches the next mark and lingers there as its cloud blooms.
+  let breath = 0, target = null;
+  if (dragon.lastDrop) {
+    breath = Math.max(0, 1 - (state.time - dragon.lastDrop.at) / .30);
+    if (breath > 0) target = dragon.lastDrop;
+  }
+  if (dragon.phase === 'breathing' || dragon.phase === 'dive') {
+    const [tx, ty] = dragon.cells[0];
+    const gap = (tx - dragon.x) * dir - BREATH_REACH;
+    const next = Math.max(0, 1 - Math.max(0, gap) / 1.45);
+    if (next > breath) {
+      breath = next;
+      target = { x: tx, y: ty };
     }
   }
-  ctx.restore();
+  const endpoint = target ? { x: (target.x + .5) * tile, y: (target.y + .5) * tile } : null;
+  drawDragon(ctx, {
+    x, y: floorY - dragon.altitude * tile, dir, pitch: dragon.pitch,
+    dive: dragon.dive, breath, time: state.time, scale,
+  }, endpoint);
 }
