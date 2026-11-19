@@ -1,6 +1,6 @@
-import { createGame } from './engine.js?v=family-five-1';
+import { createGame } from './engine.js?v=guitar-solo-1';
 import { LEVELS } from './levels.js?v=end-family-1';
-import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=family-five-1';
+import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=guitar-solo-1';
 
 const byId = (id) => document.getElementById(id);
 const lobby = byId('lobby');
@@ -23,7 +23,7 @@ const heroes = {
   maxim: { name: 'Максим', action: 'Ударить' },
   mom: { name: 'Мама', action: 'Исчезнуть' },
   dad: { name: 'Папа', action: 'Сказать «Бу!»' },
-  pasha: { name: 'Паша', action: 'Перепрыгнуть' },
+  pasha: { name: 'Паша', action: 'Сыграть на гитаре' },
 };
 const monsters = {
   zombie: { name: 'Зомби', hint: 'Упорно идёт за тобой по лабиринту.' },
@@ -68,7 +68,8 @@ let swipe;
 let soundEnabled = false;
 let audio;
 let resumeAfterHelp = false;
-let hintUntil = 0;
+let guitarRiff;
+let guitarVoice;
 
 function setText(element, value) {
   const text = String(value);
@@ -120,6 +121,50 @@ function playBoo() {
   voice.stop(now + 0.4);
 }
 
+// Pluck each string once, then let the vibration lose treble on every cycle.
+function makeGuitarRiff() {
+  const rate = audio.sampleRate;
+  const buffer = audio.createBuffer(1, Math.ceil(1.2 * rate), rate);
+  const samples = buffer.getChannelData(0);
+  const notes = [
+    [0, 164.81], [0.025, 196], [0.050, 246.94],
+    [0.22, 293.66], [0.34, 329.63],
+    [0.53, 164.81], [0.55, 246.94], [0.57, 392],
+  ];
+  for (const [onset, frequency] of notes) {
+    const period = Math.round(rate / frequency + 0.5);
+    const string = Float32Array.from({ length: period }, () => Math.random() * 2 - 1);
+    const start = Math.round(onset * rate);
+    for (let i = start; i < samples.length; i++) {
+      const pos = (i - start) % period;
+      const envelope = Math.min(1, (i - start) / (0.003 * rate), (samples.length - i) / (0.03 * rate));
+      samples[i] += 0.2 * envelope * string[pos];
+      string[pos] = 0.497 * (string[pos] + string[(pos + 1) % period]);
+    }
+  }
+  return buffer;
+}
+
+function stopGuitar() {
+  if (!guitarVoice) return;
+  guitarVoice.stop();
+  guitarVoice = undefined;
+}
+
+function playGuitar() {
+  if (!soundEnabled || audio?.state !== 'running') return;
+  guitarRiff ??= makeGuitarRiff();
+  const voice = audio.createBufferSource();
+  voice.buffer = guitarRiff;
+  voice.connect(audio.destination);
+  voice.onended = () => {
+    voice.disconnect();
+    if (voice === guitarVoice) guitarVoice = undefined;
+  };
+  guitarVoice = voice;
+  voice.start();
+}
+
 function displaySound() {
   soundButton.setAttribute('aria-label', 'Звук');
   soundButton.title = soundEnabled ? 'Выключить звук' : 'Включить звук';
@@ -130,7 +175,10 @@ function displaySound() {
 soundButton.addEventListener('click', async () => {
   soundEnabled = !soundEnabled;
   displaySound();
-  if (!soundEnabled) return;
+  if (!soundEnabled) {
+    stopGuitar();
+    return;
+  }
   try {
     const Audio = window.AudioContext || window.webkitAudioContext;
     audio ??= new Audio();
@@ -186,10 +234,21 @@ function updateHud() {
   let abilityLabel = cooldown > 0 ? action + ' · ' + cooldown + ' с' : action;
   if (state.invisible > 0) abilityLabel = 'Невидима · ' + Math.ceil(state.invisible) + ' с';
   if (state.fear > 0) abilityLabel = 'Бу! · ' + Math.ceil(state.fear) + ' с';
+  let soloHint = '';
+  let dance = 0;
+  if (state.hero === 'pasha') {
+    for (const monster of state.monsters) dance = Math.max(dance, monster.dance);
+    if (state.solo) abilityLabel = 'Гитарное соло!';
+    else if (dance > 0) abilityLabel = 'Танец · ' + Math.ceil(dance) + ' с';
+    else if (cooldown > 0) abilityLabel = 'Гитара · ' + cooldown + ' с';
+    if (dance > 0) soloHint = 'Пока над монстрами ноты, беги мимо!';
+    else if (state.solo) soloHint = 'Волна нот идёт по коридорам!';
+    else if (cooldown === 0) soloHint = 'Сыграй рядом с монстрами. Твою гитару слышно за шесть клеток по коридору.';
+  }
+  abilityButton.classList.toggle('playing-solo', Boolean(state.solo) || dance > 0);
   buttonText(abilityButton, abilityLabel);
   abilityButton.disabled = state.status !== 'playing' || cooldown > 0 || state.rideRemaining > 0;
-  const showHint = state.hero === 'pasha' && state.status === 'playing' && state.time < hintUntil;
-  setText(abilityHint, showHint ? 'Подойди к монстру. За ним должна быть свободная клетка.' : '');
+  setText(abilityHint, state.status === 'playing' ? soloHint : '');
 }
 
 function updateScreen() {
@@ -256,7 +315,7 @@ function start(hero, levelId) {
   game = createGame(hero, levelId);
   game.start();
   swipe = undefined;
-  hintUntil = 0;
+  byId('solo-icon').hidden = hero !== 'pasha';
   document.title = LEVELS[levelId].title + ' · Блок Аркада';
   setText(byId('hero-name'), heroes[hero].name);
   drawPortrait(byId('hud-portrait'), hero);
@@ -270,6 +329,7 @@ function start(hero, levelId) {
 function pause() {
   if (game?.state.status !== 'playing') return;
   cancelAnimationFrame(frame);
+  stopGuitar();
   swipe = undefined;
   game.pause();
   updateScreen();
@@ -287,18 +347,10 @@ function togglePause() {
 }
 
 function activate() {
-  if (game?.state.status !== 'playing') return;
-  if (!game.activate()) {
-    if (game.state.hero === 'pasha' && game.state.cooldown === 0 && game.state.rideRemaining === 0) {
-      hintUntil = game.state.time + 4;
-      updateHud();
-    }
-    return;
-  }
-  hintUntil = 0;
+  if (game?.state.status !== 'playing' || !game.activate()) return;
   if (game.state.hero === 'dad') playBoo();
   else if (game.state.hero === 'mom') playNote(1046, 0.25, 'sine');
-  else if (game.state.hero === 'pasha') playNote(780, 0.16);
+  else if (game.state.hero === 'pasha') playGuitar();
   else playNote(game.state.hero === 'kirill' ? 920 : 175, 0.18, 'square');
   if (game.state.status === 'playing') updateHud();
   else updateScreen();
@@ -328,7 +380,6 @@ resumeButton.addEventListener('click', () => {
     resume();
   } else if (game.state.status === 'won' && game.nextLevel()) {
     swipe = undefined;
-    hintUntil = 0;
     saveSelection(game.state.hero, game.state.levelId);
     document.title = LEVELS[game.state.levelId].title + ' · Блок Аркада';
     playNote(650, 0.2);
@@ -339,6 +390,7 @@ resumeButton.addEventListener('click', () => {
 });
 byId('menu').addEventListener('click', () => {
   cancelAnimationFrame(frame);
+  stopGuitar();
   document.querySelector(`input[name="level"][value="${game.state.levelId}"]`).checked = true;
   showLevelPreview();
   game = undefined;

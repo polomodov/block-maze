@@ -1,5 +1,5 @@
 import { LEVELS } from './levels.js?v=end-family-1';
-import { advanceEffects, monsterSpeed, resetSkill } from './monster-rules.js?v=end-family-1';
+import { advanceEffects, monsterSpeed, resetSkill, startDancing } from './monster-rules.js?v=guitar-solo-1';
 import { createDragon, flyDragon } from './dragon-rules.js?v=end-family-1';
 
 // Positions use tile centers as integer coordinates. All clocks use active game seconds.
@@ -70,7 +70,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     state.player = actor(level.start);
     state.lastPickup = null;
     state.monsters = level.monsters.map(beast => ({
-      ...actor(beast.start), type: beast.type, stun: 0,
+      ...actor(beast.start), type: beast.type, stun: 0, dance: 0,
     }));
     state.monsters.forEach(resetSkill);
     state.dragon = level.dragon ? createDragon() : null;
@@ -78,7 +78,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     state.levitation = 0;
     state.slow = 0;
     state.rideRemaining = 0;
-    state.vault = null;
+    state.solo = null;
     state.boost = 0;
     state.attack = 0;
     state.fear = 0;
@@ -216,40 +216,46 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     }
   }
 
-  function beginVault() {
-    const player = state.player;
-    const dir = player.target ? player.dir : queued || player.dir;
-    if (!dir) return false;
-    const [dx, dy] = STEPS[dir];
-    const x = Math.round(player.x) + dx, y = Math.round(player.y) + dy;
-    const toX = x + dx, toY = y + dy;
-    const occupied = (col, row) => state.monsters.some(monster =>
-      Math.round(monster.x) === col && Math.round(monster.y) === row);
-    if (!isFloor(x, y) || !isFloor(toX, toY) || !occupied(x, y) || occupied(toX, toY)) return false;
-    state.vault = { fromX: player.x, fromY: player.y, toX, toY, progress: 0 };
-    player.target = null;
-    player.dir = dir;
-    queued = null;
-    waiting = false;
-    return true;
+  function playSolo() {
+    const x = Math.round(state.player.x), y = Math.round(state.player.y);
+    const distances = distancesFrom(x, y);
+    // The opening chord reaches the next tile immediately, even during a close chase.
+    const radius = 6, speed = (radius - 1) / 0.6;
+    const cells = [];
+    distances.forEach((steps, tile) => {
+      if (steps >= 0 && steps <= radius) {
+        cells.push([tile % state.width, Math.floor(tile / state.width), steps]);
+      }
+    });
+    state.solo = { x, y, age: 0, front: 1, radius, speed, cells };
+    advanceSolo(0);
   }
 
-  function advanceVault(seconds) {
-    const vault = state.vault;
-    vault.progress = Math.min(1, vault.progress + seconds / 0.35);
-    state.player.x = vault.fromX + (vault.toX - vault.fromX) * vault.progress;
-    state.player.y = vault.fromY + (vault.toY - vault.fromY) * vault.progress;
-    if (vault.progress === 1) {
-      state.vault = null;
-      collect(vault.toX, vault.toY);
+  function advanceSolo(seconds) {
+    const solo = state.solo;
+    if (!solo) return;
+    const expanding = solo.front < solo.radius;
+    solo.age += seconds;
+    if (expanding) {
+      solo.front = Math.min(solo.radius, 1 + solo.age * solo.speed);
+      const distances = distancesFrom(solo.x, solo.y);
+      for (const monster of state.monsters) {
+        const steps = distances[tileKey(Math.round(monster.x), Math.round(monster.y))];
+        if (!monster.leap && monster.dance === 0 && steps >= 0 && steps <= solo.front + 1e-8) {
+          startDancing(monster);
+        }
+      }
     }
+    if (solo.age >= 1.1 - 1e-8) state.solo = null;
   }
 
   function activate() {
     if (state.status !== 'playing' || state.cooldown > 0 || state.rideRemaining > 0) return false;
-    if (state.hero === 'pasha' && !beginVault()) return false;
     state.cooldown = 30;
     switch (state.hero) {
+      case 'pasha':
+        playSolo();
+        break;
       case 'kirill':
         state.boost = 4;
         break;
@@ -290,8 +296,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     state.cooldown = countdown(state.cooldown, seconds);
     state.boost = countdown(state.boost, seconds);
     state.invulnerable = countdown(state.invulnerable, seconds);
-    if (state.vault) advanceVault(seconds);
-    else if (state.rideRemaining === 0) move(state.player, seconds * speed, steerPlayer, collect);
+    if (state.rideRemaining === 0) move(state.player, seconds * speed, steerPlayer, collect);
     if (state.rideRemaining > 0) {
       state.rideRemaining = countdown(state.rideRemaining, seconds);
       if (state.rideRemaining === 0) {
@@ -300,6 +305,8 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
       }
     }
     if (state.status === 'won') return;
+    for (const monster of state.monsters) monster.dance = countdown(monster.dance, seconds);
+    advanceSolo(seconds);
     state.monsters.forEach((monster, index) => {
       if (waiting) {
         monster.stun = countdown(monster.stun, seconds);
@@ -320,7 +327,7 @@ export function createGame(hero = 'kirill', levelId = 'temple') {
     state.invisible = countdown(state.invisible, seconds);
     state.fear = countdown(state.fear, seconds);
     if (waiting || state.rideRemaining > 0 || state.invulnerable > 0 || state.invisible > 0 || state.fear > 0) return;
-    const touched = !state.vault && state.monsters.some(monster => monster.type !== 'shulker' && monster.type !== 'creeper' && !monster.leap && monster.stun === 0 &&
+    const touched = state.monsters.some(monster => monster.dance === 0 && monster.type !== 'shulker' && monster.type !== 'creeper' && !monster.leap && monster.stun === 0 &&
       Math.hypot(monster.x - state.player.x, monster.y - state.player.y) < 0.58);
     if (!touched && !effectHit) return;
     if (--state.lives === 0) {

@@ -426,7 +426,7 @@ p {
 .sword,
 .ghost,
 .shout,
-.vault,
+.music-note,
 .heart,
 .play-icon {
   display: inline-block;
@@ -471,11 +471,19 @@ p {
   background: #ffa895;
   clip-path: polygon(0 13%, 100% 13%, 100% 71%, 48% 71%, 20% 99%, 20% 71%, 0 71%);
 }
-.vault {
-  width: 15px;
+.music-note {
+  width: 14px;
   height: 15px;
-  background: #86e9db;
-  clip-path: polygon(0 94%, 0 57%, 16% 57%, 16% 31%, 39% 31%, 39% 13%, 72% 13%, 72% 0, 100% 21%, 73% 47%, 73% 34%, 47% 34%, 47% 50%, 29% 50%, 29% 73%, 14% 73%, 14% 94%);
+  background: var(--hero-ink, currentColor);
+  clip-path: polygon(25% 14%,100% 0,100% 75%,86% 88%,63% 88%,63% 68%,82% 58%,82% 27%,44% 34%,44% 88%,30% 100%,5% 100%,0 88%,6% 74%,25% 66%);
+}
+#ability:has(.music-note:not([hidden])) {
+  gap: 7px;
+}
+#ability.playing-solo {
+  background: #284c46;
+  color: #b9fce4;
+  border-color: #7cccb8;
 }
 .primary {
   display: flex;

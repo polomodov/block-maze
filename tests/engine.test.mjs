@@ -268,72 +268,132 @@ test('Typhoon lets the hero walk past and checks monster contact upon landing', 
   assert.equal(state.rideRemaining, 0);
 });
 
-test('Pasha vaults over a moving zombie, pauses in midair and collects only at the landing', () => {
+test('Pasha plays without a target and the next solo is ready after 30 active seconds', () => {
   const game = createGame('pasha');
   const { state } = game;
-  assert.equal(state.hero, 'pasha');
+  assert.equal(game.activate(), false);
   game.start();
-  Object.assign(state.player, { x: 11, y: 13 });
-  const zombie = state.monsters.find(m => m.type === 'zombie');
-  Object.assign(zombie, { x: 12, y: 13 });
-  state.gems.add(13 * state.width + 13);
-  game.turn('right');
-  game.update(0.035);
-  assert.ok(state.player.x > 11);
   assert.ok(game.activate());
+  assert.equal(state.solo.front, 1);
   assert.equal(state.cooldown, 30);
-  assert.deepEqual([state.vault.toX, state.vault.toY], [13, 13]);
-  game.update(0.15);
-  assert.ok(state.vault.progress > 0 && state.vault.progress < 1);
-  assert.equal(state.lives, 3);
-  game.pause();
-  const progress = state.vault.progress;
-  game.update(2);
-  assert.equal(state.vault.progress, progress);
-  game.resume();
+  assert.equal(state.monsters.every(monster => monster.dance === 0), true);
   game.update(0.2);
-  assert.equal(state.vault, null);
-  assert.equal(state.player.x, 13);
+  game.pause();
+  const age = state.solo.age;
+  game.update(31);
+  assert.equal(state.solo.age, age);
+  assert.ok(!game.activate());
+  game.resume();
+  game.update(29.79);
+  assert.equal(state.solo, null);
+  assert.ok(!game.activate());
+  game.update(0.01);
+  assert.ok(game.activate());
+});
+
+test('the first chord saves Pasha in a close chase and he can collect emeralds through the dancers', () => {
+  const game = createGame('pasha');
+  const { state } = game;
+  game.start();
+  game.turn('right');
+  game.update(0.1);
+  const zombie = state.monsters.find(monster => monster.type === 'zombie');
+  Object.assign(zombie, { x: state.player.x + 0.6, y: state.player.y, target: null });
+  const x = zombie.x;
+  assert.ok(game.activate());
+  assert.equal(zombie.dance, 5);
+  game.update(0.3);
+  assert.equal(zombie.x, x);
+  assert.ok(state.player.x > zombie.x);
   assert.equal(state.lives, 3);
-  assert.equal(zombie.stun, 0);
-  assert.ok(state.gems.has(13 * state.width + 12));
-  assert.ok(!state.gems.has(13 * state.width + 13));
+  assert.ok(state.collected > 0);
+  game.pause();
+  const dance = zombie.dance;
+  game.update(1);
+  assert.equal(zombie.dance, dance);
+});
+
+test('notes travel round walls in 0.6 seconds, stop at six steps and a dancer recovers exactly once', () => {
+  const game = createGame('pasha');
+  const { state } = game;
+  game.start();
+  Object.assign(state.player, { x: 5, y: 3 });
+  const [aroundWall, near, outside] = state.monsters;
+  Object.assign(near, { x: 5, y: 2 });
+  Object.assign(aroundWall, { x: 7, y: 3 });
+  Object.assign(outside, { x: 8, y: 3 });
+  assert.ok(game.activate());
+  assert.equal(near.dance, 5);
+  assert.equal(aroundWall.dance, 0);
+  assert.ok(state.solo.cells.every(([x,y]) => state.map[y][x] === '.'));
+  assert.deepEqual(state.solo.cells.find(([x,y]) => x === 7 && y === 3), [7,3,6]);
+  game.update(0.59);
+  assert.equal(aroundWall.dance, 0);
+  game.update(0.01);
+  assert.equal(aroundWall.dance, 5);
+  game.update(4.4);
+  assert.equal(near.dance, 0);
+  assert.equal(outside.dance, 0);
+  assert.ok(Math.abs(aroundWall.dance - 0.6) < 1e-8);
+  game.update(0.6);
+  assert.equal(aroundWall.dance, 0);
+  // After the music ends, touching a dancer again costs a life.
+  Object.assign(state.player, { x: near.x, y: near.y });
+  game.turn('down');
+  game.update(1 / 60);
+  assert.equal(state.lives, 2);
+});
+
+test('the solo cancels a warned attack but a previously launched projectile still hits Pasha', () => {
+  const game = createGame('pasha', 'arcade');
+  const { state } = game;
+  game.start();
+  Object.assign(state.player, { x: 8, y: 1 });
+  const skeleton = state.monsters.find(monster => monster.type === 'skeleton');
+  Object.assign(skeleton, { x: 9, y: 1, windup: 0.05, aim: { dir: 'left' } });
+  const owner = state.monsters.indexOf(skeleton);
+  state.effects.push({ type: 'arrow', x: 8.55, y: 1, dir: 'left', owner, remaining: 0.5 });
+  assert.ok(game.activate());
+  assert.equal(skeleton.dance, 5);
+  assert.equal(skeleton.windup, 0);
+  assert.equal(skeleton.aim, null);
+  game.turn('right');
+  game.update(0.1);
+  assert.equal(state.lives, 2);
+  assert.equal(state.solo, null);
+  assert.equal(state.monsters.every(monster => monster.dance === 0), true);
+  assert.ok(state.cooldown > 29);
+});
+
+test('Pasha can reach the next level during a solo and carries his cooldown', () => {
+  const game = createGame('pasha');
+  const { state } = game;
+  game.start();
+  state.gems = new Set([state.width * state.player.y + state.player.x + 1]);
+  game.activate();
+  game.turn('right');
+  game.update(0.3);
+  assert.equal(state.status, 'won');
+  assert.ok(game.nextLevel());
+  assert.equal(state.hero, 'pasha');
+  assert.equal(state.solo, null);
+  assert.ok(state.cooldown > 29);
   assert.ok(!game.activate());
 });
 
-test('Pasha needs a monster ahead, an open corridor and a free landing to spend a charge', () => {
-  const game = createGame('pasha');
+test('a dancing shulker drops its aim while dragon breath stays dangerous in the same corridor', () => {
+  const game = createGame('pasha', 'end');
   const { state } = game;
+  const shulker = state.monsters.find(monster => monster.type === 'shulker');
   game.start();
-  for (const [x, y, middleOccupied, landingOccupied] of [
-    [11,13,false,false], [11,13,true,true], [4,3,true,false], [5,3,true,false],
-  ]) {
-    Object.assign(state.player, { x, y });
-    Object.assign(state.monsters[0], { x: middleOccupied ? x + 1 : 1, y });
-    Object.assign(state.monsters[1], { x: landingOccupied ? x + 2 : 1, y });
-    game.turn('right');
-    assert.equal(game.activate(), false);
-    assert.equal(state.cooldown, 0);
-    assert.equal(state.vault, null);
-    assert.equal(state.player.x, x);
-  }
-});
-
-test('Pasha can jump straight up a corridor and can win by landing on the last emerald', () => {
-  const game = createGame('pasha');
-  const { state } = game;
-  game.start();
-  Object.assign(state.player, { x: 1, y: 3 });
-  Object.assign(state.monsters[0], { x: 1, y: 2 });
-  Object.assign(state.monsters[1], { x: 17, y: 1 });
-  state.gems = new Set([state.width + 1]);
-  game.turn('up');
+  Object.assign(state.player, { x: 11, y: 13 });
+  Object.assign(shulker, { x: 12, y: 13, windup: 0.1, aim: { dir: 'left' } });
+  state.effects.push({ type: 'dragon_breath', x: 11, y: 13, remaining: 2 });
   assert.ok(game.activate());
-  game.update(0.36);
-  assert.equal(state.status, 'won');
-  assert.deepEqual([state.player.x, state.player.y], [1,1]);
-  assert.ok(game.nextLevel());
-  assert.equal(state.hero, 'pasha');
-  assert.equal(state.vault, null);
-  assert.ok(state.cooldown > 29);
+  assert.equal(shulker.dance, 5);
+  assert.equal(shulker.windup, 0);
+  game.turn('right');
+  game.update(0.04);
+  assert.equal(state.lives, 2);
+  assert.equal(state.solo, null);
 });

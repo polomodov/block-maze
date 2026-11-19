@@ -20,6 +20,15 @@ function clearWarning(monster) {
   monster.cells = null;
 }
 
+// The music interrupts preparations; arrows already in flight remain in the maze.
+export function startDancing(monster) {
+  monster.dance = 5;
+  if (monster.windup > 0) monster.skillCooldown = 1;
+  clearWarning(monster);
+  monster.charging = false;
+  monster.watched = false;
+}
+
 function corridorDirection(x, y, tx, ty, maxRange, floor) {
   const length = Math.abs(tx - x) + Math.abs(ty - y);
   if (length === 0 || length > maxRange || (x !== tx && y !== ty)) return null;
@@ -223,6 +232,7 @@ function startWarning(state, monster, index, floor, distance) {
 // The motion multiplier lets ordinary corridor movement enforce walls for lunges and hops too.
 export function monsterSpeed(state, index, definition, seconds, floor, distance) {
   const monster = state.monsters[index];
+  if (monster.dance > 0) return 0;
   const distracted = state.fear > 0 || state.invisible > 0 || monster.stun > 0;
   monster.skillCooldown = Math.max(0, monster.skillCooldown - seconds);
   if (monster.leap) {
@@ -297,6 +307,7 @@ export function advanceEffects(state, seconds, floor) {
     const owner = state.monsters[effect.owner];
     // A disarmed attack cannot resume in flight after invisibility, fear or stun expires.
     if (state.invisible > 0 || state.fear > 0 || owner?.stun > 0) return false;
+    if (owner?.dance > 0 && effect.delay > 0) return false;
     let elapsed = seconds;
     if (effect.delay > 0) {
       const waiting = Math.min(elapsed, effect.delay);

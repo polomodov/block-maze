@@ -277,6 +277,12 @@ const spritePixels = {
     '...qtjtbBbtjuq..', '..qtujtbbbtjuq..', '..quujtbbbtjuq..', '..qffutbbbtjfq..',
     '...quuqNnNquq...', '....qNNnqnNnq...', '....qNnnqnNNq...', '...qPppqqppPq...',
   ],
+  guitar: [
+    '..............qqw', '.............qtqq', '............qcsw.',
+    '.....qqq...qcsq..', '..qqqtrrqqqcsq...', '.qtrrrhrrqcsq....',
+    'qtrwhhhrrcsq.....', 'qtrrrhrrscq......', 'qtrbrsrrrq.......',
+    '.qrbbrrqq........', '..qrrrq..........', '...qqq...........',
+  ],
   maxim: [
     '.....qhhhhq.....', '....qllhhhdq....', '...qlhhhhhhdq...', '...qhhffhhddq...',
     '...qhffffffdq...', '...qhfofkfokq...', '...qkfwwffffq...', '....qkffkffkq...',
@@ -314,6 +320,10 @@ const monsterColors = {
 };
 
 const creeperFlash = { q: '#485052', h: '#fff9cc', g: '#fff3af', d: '#eddfa3', o: '#807968' };
+const guitarColors = {
+  q:'#2d2539', r:'#d75f48', t:'#ffa771', b:'#93423f', h:'#59313c',
+  s:'#fff1bd', c:'#a57852', w:'#fff6dd',
+};
 
 const monsterPalettes = {
   enderman: endermanColors,
@@ -595,6 +605,53 @@ function drawBoo(ctx, x, y) {
   });
 }
 
+// The dark rim keeps the note legible on water, lava and the pale End stone.
+function musicNote(ctx, x, y, color) {
+  box(ctx,'#282637',x+2,y,5,4);
+  box(ctx,'#282637',x+5,y+2,3,3);
+  box(ctx,'#282637',x+2,y+3,3,4);
+  box(ctx,'#282637',x-1,y+5,5,4);
+  box(ctx,color,x+3,y+1,1,6);
+  box(ctx,color,x+4,y+1,2,2);
+  box(ctx,color,x+6,y+3,1,1);
+  box(ctx,color,x,y+6,3,2);
+}
+
+function drawSoloWave(ctx, solo) {
+  // The first chord reaches the next tile immediately. Its trail can then fade past the last row.
+  const front = 1 + solo.age * solo.speed;
+  ctx.save();
+  for (const [col, row, distance] of solo.cells) {
+    const behind = front - distance;
+    if (behind < 0 || behind >= 3) continue;
+    const x = col * TILE, y = row * TILE;
+    const strength = 1 - behind / 3;
+    ctx.globalAlpha = .32 * strength;
+    box(ctx,'#a6f1e5',x+1,y+1,TILE-2,TILE-2);
+    ctx.globalAlpha = strength;
+    box(ctx,'#87dbc9',x+2,y+TILE-4,5,1);
+    box(ctx,'#f3c4ef',x+TILE-7,y+2,5,1);
+    if (distance > 0 && (col + row) % 2 === 0) {
+      musicNote(ctx,x+2,y+6-Math.floor(behind),'#ffdbf0');
+    }
+  }
+  ctx.restore();
+}
+
+function drawSoloist(ctx, x, y, age, left) {
+  const beat = Math.floor(age * 8);
+  ctx.save();
+  ctx.translate(x, y);
+  if (left) ctx.scale(-1,1);
+  ctx.drawImage(spriteImage('guitar',guitarColors,false),-8,-4);
+  box(ctx,'#efc6a0',-3,beat % 2 ? 1 : 3,2,2);
+  box(ctx,'#efc6a0',4,-1,2,2);
+  ctx.restore();
+  const rise = Math.floor(age * 13) % 6;
+  musicNote(ctx,x+6,y-16-rise,'#ffaed8');
+  musicNote(ctx,x-11,y-10-(rise+3)%6,'#a9f8e6');
+}
+
 export function drawBoard(canvas,state) {
   const ctx = surface(canvas,state.width*TILE,state.height*TILE);
   ctx.drawImage(background(canvas,state),0,0);
@@ -604,6 +661,7 @@ export function drawBoard(canvas,state) {
   if (animateRide) {
     for (const ride of state.decorations) animateRide(ctx,ride,TILE,state.time);
   }
+  if (state.solo) drawSoloWave(ctx,state.solo);
   drawMonsterEffects(ctx,state);
   theme?.threats?.(ctx,state,TILE);
   const glint = Math.floor(state.time * 5);
@@ -624,6 +682,10 @@ export function drawBoard(canvas,state) {
       hop = 2 + Math.round(Math.sin(state.time * 3.5));
     }
     ctx.save();
+    if (monster.dance > 0) {
+      const beat = Math.sin(monster.dance * 12);
+      ctx.translate(Math.round(beat * 2), -Math.round(Math.abs(beat) * 3));
+    }
     if (monster.watched) ctx.globalAlpha = .62;
     const palette = monsterPalettes[monster.type] || monsterColors;
     if (monster.type === 'shulker') {
@@ -633,6 +695,10 @@ export function drawBoard(canvas,state) {
       sprite(ctx,monster.type,palette,x-8,y-8-hop,monster.dir==='left',stride);
     }
     ctx.restore();
+    if (monster.dance > 0) {
+      const rise = Math.floor(monster.dance * 9) % 4;
+      musicNote(ctx,x+4,y-17-hop-rise,'#ffb6dd');
+    }
     if (monster.type === 'creeper' && monster.windup > 0) {
       // Two warm pulses on the preparing creeper leave the surrounding board steady.
       ctx.save();
@@ -653,8 +719,7 @@ export function drawBoard(canvas,state) {
     }
   }
   const [x,y] = state.rideRemaining > 0 ? riderPosition(state,TILE) : actorPos(state.player);
-  const vaultLift = state.vault ? Math.round(15 * Math.sin(Math.PI * state.vault.progress)) : 0;
-  contactShadow(ctx, x, y, vaultLift || state.levitation > 0 ? 9 : 13);
+  contactShadow(ctx, x, y, state.levitation > 0 ? 9 : 13);
   if (state.boost > 0) {
     const vector = {up:[0,1],down:[0,-1],left:[1,0],right:[-1,0]}[state.player.dir] || [-1,0];
     for (let n=0;n<3;n++) {
@@ -666,13 +731,10 @@ export function drawBoard(canvas,state) {
   ctx.save();
   if (state.invulnerable>0 && Math.floor(state.time*8)%2) ctx.globalAlpha=0.55;
   if (state.invisible > 0) ctx.globalAlpha = 0.42;
-  const lift = vaultLift || (state.levitation > 0 ? 3 + Math.round(Math.sin(state.time * 8)) : 0);
-  if (vaultLift > 5) {
-    box(ctx,'#b5fff1',x-5,y+7-lift,2,3);
-    box(ctx,'#67d7c8',x+3,y+8-lift,2,2);
-  }
+  const lift = state.levitation > 0 ? 3 + Math.round(Math.sin(state.time * 8)) : 0;
   const stride = lift || state.rideRemaining > 0 ? 0 : walkFrame(state.player);
-  sprite(ctx,state.hero,heroColors[state.hero],x-8,y-8-lift,state.player.dir==='left',stride,state.player.dir==='up');
+  sprite(ctx,state.hero,heroColors[state.hero],x-8,y-8-lift,state.player.dir==='left',stride,state.player.dir==='up' && !state.solo);
+  if (state.solo) drawSoloist(ctx,x,y-lift,state.solo.age,state.player.dir==='left');
   ctx.restore();
   if (state.invisible > 0) {
     const drift = Math.floor(state.time * 5) % 3;

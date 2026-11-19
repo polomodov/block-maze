@@ -37,8 +37,8 @@
       crossorigin
     />
     <link rel="preload" as="image" href="./assets/hero-portraits.png?v=end-family-1" />
-    <link rel="stylesheet" href="./styles.css?v=family-five-1" />
-    <script type="module" src="./game.js?v=family-five-1"></script>
+    <link rel="stylesheet" href="./styles.css?v=guitar-solo-1" />
+    <script type="module" src="./game.js?v=guitar-solo-1"></script>
   </head>
   <body>
     <header class="topbar">
@@ -176,7 +176,7 @@
                 </span>
                 <span class="hero-copy">
                   <strong>Паша</strong>
-                  <span><i class="vault" aria-hidden="true"></i>Прыжок через монстра</span>
+                  <span><i class="music-note" aria-hidden="true"></i>Гитарное соло</span>
                 </span>
               </label>
             </div>
@@ -244,7 +244,7 @@
             ><button data-dir="down" aria-label="Вниз">▼</button
             ><button data-dir="right" aria-label="Вправо">▶</button>
           </div>
-          <button id="ability" class="primary">Способность</button
+          <button id="ability" class="primary"><i class="music-note" id="solo-icon" aria-hidden="true" hidden></i><span data-label>Способность</span></button
           ><span class="key-hints"
             ><kbd>WASD</kbd> ходить <kbd>Пробел</kbd> способность</span
           >
@@ -291,7 +291,7 @@
           <li><b>Максим</b> ударом оглушает монстров рядом на 4 секунды.</li>
           <li><b>Мама</b> на 4 секунды становится невидимой. Монстры теряют её из виду, и она может пройти сквозь них.</li>
           <li><b>Папа</b> кричит «Бу!». На 3 секунды монстры разбегаются и дают ему пройти.</li>
-          <li><b>Паша</b> перепрыгивает монстра в соседней клетке по ходу движения. Клетка за монстром должна быть свободна. Если места нет, способность остаётся готовой.</li>
+          <li><b>Паша</b> играет гитарное соло. Ноты летят по коридорам на шесть клеток и огибают углы. Монстр, до которого долетела нота, пять секунд танцует. Видишь ноты над его головой? Беги мимо!</li>
         </ul>
         <button class="primary" autofocus>Понятно</button>
       </form>
