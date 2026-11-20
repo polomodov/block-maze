@@ -53,8 +53,16 @@ self.addEventListener('install', event => {
 // Pruning is only safe once this release serves pages: before that, the
 // previous worker is still active and its pages have no route yet.
 let activation = null;
+// Chromium hands pages to an activating worker and sends their requests before
+// the activate event runs, so wait for the activated state as well.
+async function activationDone() {
+  const worker = self.serviceWorker;
+  if (worker?.state === 'activating')
+    await new Promise((resolve) => worker.addEventListener('statechange', resolve, { once: true }));
+  await activation?.catch(() => {});
+}
 async function pruneWhenActive() {
-  await activation;
+  await activationDone();
   if ((self.serviceWorker?.state ?? 'activated') === 'activated') await pruneReleases(await loadRoutes());
 }
 self.addEventListener('activate', event => {
@@ -95,6 +103,8 @@ self.addEventListener('fetch', event => {
   if (url.href === base) url.pathname += 'index.html';
   if (!files.has(url.href)) return;
   event.respondWith((async () => {
+    // Wait until activation has recorded which release each open page was loaded from.
+    await activationDone();
     const release = (await loadRoutes())[event.clientId];
     if (release && await caches.has(release)) {
       const old = await caches.open(release).then(cache => cache.match(url.href));
