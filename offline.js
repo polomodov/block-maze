@@ -22,6 +22,20 @@ function confirmFiles(worker) {
     worker.postMessage('offline-status',[channel.port2]);
   });
 }
+function activated(worker) {
+  return new Promise((resolve,reject) => {
+    function state() {
+      if (worker.state === 'activated') { worker.removeEventListener('statechange',state); resolve(worker); }
+      if (worker.state === 'redundant') { worker.removeEventListener('statechange',state); reject(new Error('install failed')); }
+    }
+    worker.addEventListener('statechange',state); state();
+  });
+}
+// Ask the browser not to evict saves and the offline copy (Safari clears
+// storage of sites that are not on the home screen after a week without visits).
+function keepStorage() {
+  navigator.storage?.persist?.().catch(() => {});
+}
 async function prepare() {
   if (busy) return;
   if (!('serviceWorker' in navigator)) {status.textContent='Этот браузер не поддерживает офлайн-режим.'; return;}
@@ -29,21 +43,15 @@ async function prepare() {
   status.textContent='Загрузка игры для офлайна…';
   try {
     const reg = await navigator.serviceWorker.register('./sw.js', {scope:'./', updateViaCache:'none'});
-    let worker = reg.active;
-    if (!worker) {
-      let pending = reg.installing || reg.waiting;
-      if (!pending) { await reg.update(); pending=reg.installing || reg.waiting || reg.active; }
-      if (!pending) throw new Error('no worker');
-      worker = await new Promise((resolve,reject) => {
-        function state() {
-          if (pending.state === 'activated') { pending.removeEventListener('statechange',state); resolve(pending); }
-          if (pending.state === 'redundant') { pending.removeEventListener('statechange',state); reject(new Error('install failed')); }
-        }
-        pending.addEventListener('statechange',state); state();
-      });
-    }
+    // A newer version being installed takes priority over the active one,
+    // so "ready" always describes the release that will actually run.
+    let pending = reg.installing || reg.waiting;
+    if (!pending && !reg.active) { await reg.update(); pending = reg.installing || reg.waiting; }
+    const worker = pending ? await activated(pending) : reg.active;
+    if (!worker) throw new Error('no worker');
     await confirmFiles(worker);
     status.textContent='Готово к игре офлайн'; status.dataset.ready='true';
+    keepStorage();
   } catch {
     delete status.dataset.ready;
     status.textContent='Не удалось подготовить игру. Подключись к интернету и повтори загрузку.';
@@ -52,4 +60,8 @@ async function prepare() {
 }
 retry.addEventListener('click',prepare);
 window.addEventListener('online', () => { if (!status.dataset.ready) prepare(); });
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('controllerchange', () => {
+  delete status.dataset.ready;
+  prepare();
+});
 prepare();

@@ -77,7 +77,7 @@ node scripts/update-offline.mjs --check
 
 ## Публикация
 
-GitHub Pages раздаёт файлы из корня ветки `main`. Обращения к `games.polomodov.tech/block-maze/` Cloudflare Worker передаёт этому сайту, сохраняя путь и параметры выбора уровня. На этом же шлюзе работают разделы семейных игр `/block-jump/`, `/block-dash/` и `/block-playroom/`. Новые версии игры появляются на поддомене после публикации GitHub Pages.
+GitHub Pages раздаёт файлы из корня ветки `main`. Обращения к `games.polomodov.tech/block-maze/` Cloudflare Worker передаёт этому сайту, сохраняя путь и параметры выбора уровня. На этом же шлюзе работают разделы семейных игр `/block-jump/`, `/block-dash/` и `/block-playroom/`. Корень домена открывает «Семейную игротеку». Редиректы GitHub Pages переписываются на этот же домен, а к ответам добавляются заголовки безопасности (HSTS, CSP, nosniff). Поведение шлюза проверяет `tests/worker.test.mjs`. Новые версии игры появляются на поддомене после публикации GitHub Pages.
 
 Для обновления самого Worker выполни из корня репозитория `npx wrangler@4 deploy --config deploy/wrangler.json` с доступом к зоне `polomodov.tech`.
 

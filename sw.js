@@ -3,17 +3,35 @@ const base = self.registration.scope;
 const prefix = 'family-offline:' + new URL(base).pathname + ':';
 const cacheName = prefix + OFFLINE_REVISION;
 const files = new Map(OFFLINE_FILES.map(([path, integrity]) => [new URL(path,base).href, integrity]));
+// Pages opened before this version activated keep reading the previous release,
+// so a sprite sheet or script loaded mid-game always matches the code already running.
+let previousCache = null;
+let previousClients = new Set();
 
 // addAll is atomic: an interrupted download never advertises a partial game.
 function download(cache, urls) {
   return cache.addAll(urls.map(url => new Request(url, {cache:'reload', integrity:files.get(url)})));
 }
+async function dropPreviousWhenUnused() {
+  if (!previousCache) return;
+  for (const id of previousClients) if (await self.clients.get(id)) return;
+  await caches.delete(previousCache);
+  previousCache = null;
+  previousClients = new Set();
+}
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(cacheName).then(cache => download(cache, [...files.keys()])));
+  // Activate as soon as the whole release is stored, so an installed app does not
+  // stay on an old version until every window is closed.
+  event.waitUntil(caches.open(cacheName).then(cache => download(cache, [...files.keys()])).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    for (const name of await caches.keys()) if (name.startsWith(prefix) && name !== cacheName) await caches.delete(name);
+    const open = await self.clients.matchAll({type:'window'});
+    const names = (await caches.keys()).filter(name => name.startsWith(prefix) && name !== cacheName);
+    // Keep the newest older release (the one open pages were loaded from).
+    previousCache = open.length && names.length ? names[names.length - 1] : null;
+    previousClients = new Set(previousCache ? open.map(client => client.id) : []);
+    for (const name of names) if (name !== previousCache) await caches.delete(name);
     await self.clients.claim();
   })());
 });
@@ -25,8 +43,14 @@ self.addEventListener('message', event => {
       const present = new Set((await cache.keys()).map(req => req.url));
       const missing = [...files.keys()].filter(url => !present.has(url));
       if (missing.length) await download(cache, missing);
+      await dropPreviousWhenUnused();
       event.ports[0].postMessage({ready:true, count:files.size, revision:OFFLINE_REVISION});
-    } catch { event.ports[0].postMessage({ready:false}); }
+    } catch {
+      // The site may already serve a newer release whose files no longer match this
+      // worker's checksums. Ask the browser to fetch that release instead.
+      self.registration.update().catch(() => {});
+      event.ports[0].postMessage({ready:false});
+    }
   })());
 });
 self.addEventListener('fetch', event => {
@@ -36,6 +60,10 @@ self.addEventListener('fetch', event => {
   if (url.href === base) url.pathname += 'index.html';
   if (!files.has(url.href)) return;
   event.respondWith((async () => {
+    if (previousCache && previousClients.has(event.clientId)) {
+      const old = await caches.open(previousCache).then(cache => cache.match(url.href));
+      if (old) return old;
+    }
     const cache = await caches.open(cacheName);
     const cached = await cache.match(url.href);
     if (cached) return cached;
