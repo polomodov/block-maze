@@ -1,4 +1,4 @@
-const status = document.querySelector('#offline-status');
+const statusLine = document.querySelector('#offline-status');
 const retry = document.querySelector('#offline-retry');
 const install = document.querySelector('#install-game');
 let promptEvent, busy = false;
@@ -38,9 +38,9 @@ function keepStorage() {
 }
 async function prepare() {
   if (busy) return;
-  if (!('serviceWorker' in navigator)) {status.textContent='Этот браузер не поддерживает офлайн-режим.'; return;}
+  if (!('serviceWorker' in navigator)) {statusLine.textContent='Этот браузер не поддерживает офлайн-режим.'; return;}
   busy=true; retry.hidden=true;
-  status.textContent='Загрузка игры для офлайна…';
+  statusLine.textContent='Загрузка игры для офлайна…';
   try {
     const reg = await navigator.serviceWorker.register('./sw.js', {scope:'./', updateViaCache:'none'});
     // A newer version being installed takes priority over the active one,
@@ -50,18 +50,18 @@ async function prepare() {
     const worker = pending ? await activated(pending) : reg.active;
     if (!worker) throw new Error('no worker');
     await confirmFiles(worker);
-    status.textContent='Готово к игре офлайн'; status.dataset.ready='true';
+    statusLine.textContent='Готово к игре офлайн'; statusLine.dataset.ready='true';
     keepStorage();
   } catch {
-    delete status.dataset.ready;
-    status.textContent='Не удалось подготовить игру. Подключись к интернету и повтори загрузку.';
+    delete statusLine.dataset.ready;
+    statusLine.textContent='Не удалось подготовить игру. Подключись к интернету и повтори загрузку.';
     retry.hidden=false;
   } finally { busy=false; }
 }
 retry.addEventListener('click',prepare);
-window.addEventListener('online', () => { if (!status.dataset.ready) prepare(); });
+window.addEventListener('online', () => { if (!statusLine.dataset.ready) void prepare(); });
 if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('controllerchange', () => {
-  delete status.dataset.ready;
-  prepare();
+  delete statusLine.dataset.ready;
+  void prepare();
 });
-prepare();
+void prepare();

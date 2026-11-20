@@ -14,7 +14,8 @@ function download(cache, urls) {
 }
 async function dropPreviousWhenUnused() {
   if (!previousCache) return;
-  for (const id of previousClients) if (await self.clients.get(id)) return;
+  const open = await Promise.all([...previousClients].map(id => self.clients.get(id)));
+  if (open.some(Boolean)) return;
   await caches.delete(previousCache);
   previousCache = null;
   previousClients = new Set();
@@ -29,7 +30,7 @@ self.addEventListener('activate', event => {
     const open = await self.clients.matchAll({type:'window'});
     const names = (await caches.keys()).filter(name => name.startsWith(prefix) && name !== cacheName);
     // Keep the newest older release (the one open pages were loaded from).
-    previousCache = open.length && names.length ? names[names.length - 1] : null;
+    previousCache = open.length && names.length ? names.at(-1) : null;
     previousClients = new Set(previousCache ? open.map(client => client.id) : []);
     for (const name of names) if (name !== previousCache) await caches.delete(name);
     await self.clients.claim();
