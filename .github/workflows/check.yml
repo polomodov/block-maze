@@ -20,3 +20,6 @@ jobs:
         run: node --test tests/*.test.mjs
       - name: Перечень офлайн-файлов совпадает с кодом
         run: node scripts/update-offline.mjs --check
+      - name: Minecraft-аддон
+        working-directory: minecraft
+        run: npm ci --ignore-scripts && npm test && npm run typecheck && npm run package

@@ -1,0 +1,19 @@
+{
+  "name": "emerald-maze-addon",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "package": "node scripts/build.mjs --package",
+    "deploy:local": "node scripts/build.mjs --deploy"
+  },
+  "devDependencies": {
+    "@minecraft/server": "2.10.0",
+    "@minecraft/server-ui": "2.2.0",
+    "esbuild": "^0.25.0",
+    "fflate": "^0.8.3",
+    "typescript": "^5.6.0"
+  }
+}
