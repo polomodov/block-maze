@@ -1,6 +1,6 @@
 import { playGuitar, stopGuitar, performanceAge } from './guitar.js?v=encore-1';
 import { createGame, restoreGame } from './engine.js?v=offline-1';
-import { bindProgress, saveGame, clearSavedGame, addResult } from './progress.js';
+import { beginArcadeRound, bindProgress, saveGame, clearSavedGame, addResult } from './progress.js';
 import { LEVELS } from './levels.js?v=end-family-1';
 import { drawBoard, drawLandscape, drawMonsterPortrait, drawPortrait } from './art.js?v=dragon-flight-1';
 
@@ -300,6 +300,7 @@ function showArena() {
 }
 
 function start(hero, levelId) {
+  beginArcadeRound();
   game = createGame(hero, levelId);
   game.start();
   showArena();
