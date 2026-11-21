@@ -207,55 +207,69 @@ function endGame(game: Game, reason: 'win' | 'lose' | 'stop' | 'left') {
 
 // ---------- every few ticks ----------
 
-function update(game: Game) {
+/** Which grid block the player stands on, or undefined once they leave the maze. */
+function playerCell(game: Game): Cell | undefined {
   const { player, plan, origin } = game;
-  if (!player.isValid) return endGame(game, 'left');
   const p = player.location;
   const cell = { x: Math.floor(p.x) - origin.x, z: Math.floor(p.z) - origin.z };
   const inside = cell.x >= 0 && cell.z >= 0 && cell.x < plan.size && cell.z < plan.size;
-  if (player.dimension.id !== game.dimension.id || !inside || p.y < origin.y - 2 || p.y > origin.y + 6) {
-    // Teleported out by a command or another add-on: the game is over.
-    return endGame(game, 'stop');
-  }
+  const level = p.y >= origin.y - 2 && p.y <= origin.y + 6;
+  return player.dimension.id === game.dimension.id && inside && level ? cell : undefined;
+}
 
-  const k = key(cell);
-  if (game.emeraldsLeft.delete(k)) {
+function collect(game: Game, cell: Cell) {
+  const { player, plan, origin } = game;
+  if (game.emeraldsLeft.delete(key(cell))) {
     game.dimension.setBlockType({ x: origin.x + cell.x, y: origin.y, z: origin.z + cell.z }, FLOOR);
     player.playSound('random.orb', { pitch: 1 + (plan.emeralds.length - game.emeraldsLeft.size) / plan.emeralds.length });
   }
-  const done = game.emeraldsLeft.size === 0;
-  if (done && !game.allCollectedShown) {
+  if (game.emeraldsLeft.size === 0 && !game.allCollectedShown) {
     game.allCollectedShown = true;
     player.onScreenDisplay.setTitle(' ', { subtitle: '§6Все изумруды! Беги к золотому блоку', fadeInDuration: 0, stayDuration: 50, fadeOutDuration: 10 });
     player.playSound('note.pling');
   }
-  if (cell.x === plan.finish.x && cell.z === plan.finish.z) {
-    if (done) return endGame(game, 'win');
-  }
+}
 
-  for (const mob of game.mobs) {
-    if (!mob.entity.isValid) continue;
-    const m = mob.entity.location;
-    if (Math.abs(m.x - p.x) < 1.1 && Math.abs(m.z - p.z) < 1.1 && Math.abs(m.y - p.y) < 2) {
-      game.lives--;
-      if (game.lives <= 0) return endGame(game, 'lose');
-      player.teleport(at(game, plan.start));
-      for (const other of game.mobs) if (other.entity.isValid) other.entity.teleport(at(game, other.home));
-      player.playSound('mob.husk.hurt');
-      player.onScreenDisplay.setTitle(' ', { subtitle: '§cПоймали! Осталось жизней: ' + game.lives, fadeInDuration: 0, stayDuration: 40, fadeOutDuration: 10 });
-      break;
-    }
-  }
+function isCaught(game: Game): boolean {
+  const p = game.player.location;
+  return game.mobs.some(({ entity }) => {
+    if (!entity.isValid) return false;
+    const m = entity.location;
+    return Math.abs(m.x - p.x) < 1.1 && Math.abs(m.z - p.z) < 1.1 && Math.abs(m.y - p.y) < 2;
+  });
+}
 
-  const ticks = system.currentTick - game.startTick;
-  const collected = plan.emeralds.length - game.emeraldsLeft.size;
-  player.onScreenDisplay.setActionBar(
-    '§aИзумруды ' + collected + '/' + plan.emeralds.length + '  §f' + formatTicks(ticks) + (game.mobs.length ? '  §c' + '❤'.repeat(game.lives) : ''),
-  );
+function caught(game: Game) {
+  game.lives--;
+  if (game.lives <= 0) return endGame(game, 'lose');
+  game.player.teleport(at(game, game.plan.start));
+  for (const mob of game.mobs) if (mob.entity.isValid) mob.entity.teleport(at(game, mob.home));
+  game.player.playSound('mob.husk.hurt');
+  game.player.onScreenDisplay.setTitle(' ', { subtitle: '§cПоймали! Осталось жизней: ' + game.lives, fadeInDuration: 0, stayDuration: 40, fadeOutDuration: 10 });
+}
+
+function showStatus(game: Game) {
+  const total = game.plan.emeralds.length;
+  const collected = total - game.emeraldsLeft.size;
+  const lives = game.mobs.length ? '  §c' + '❤'.repeat(game.lives) : '';
+  game.player.onScreenDisplay.setActionBar('§aИзумруды ' + collected + '/' + total + '  §f' + formatTicks(system.currentTick - game.startTick) + lives);
+}
+
+function update(game: Game) {
+  if (!game.player.isValid) return endGame(game, 'left');
+  const cell = playerCell(game);
+  // Teleported out by a command or another add-on: the game is over.
+  if (!cell) return endGame(game, 'stop');
+  collect(game, cell);
+  const { finish } = game.plan;
+  if (game.emeraldsLeft.size === 0 && cell.x === finish.x && cell.z === finish.z) return endGame(game, 'win');
+  if (isCaught(game)) return caught(game);
+  showStatus(game);
 }
 
 system.runInterval(() => {
-  for (const game of [...games.values()]) update(game);
+  // Deleting the current entry while iterating a Map is safe.
+  for (const game of games.values()) update(game);
 }, 2);
 
 // ---------- menu and commands ----------

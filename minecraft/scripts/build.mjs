@@ -2,8 +2,8 @@
 // --deploy copies the pack into Minecraft's development_behavior_packs folder
 // (set MC_DEV_BP to override the path), so `/reload` in the game picks up changes.
 import { build } from 'esbuild';
-import { cp, mkdir, rm } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
+import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { zipSync } from 'fflate';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -25,7 +25,13 @@ console.log('Built', out);
 
 if (process.argv.includes('--package')) {
   const file = join(root, 'dist/EmeraldMaze.mcaddon');
-  execFileSync('zip', ['-qr', file, 'EmeraldMaze'], { cwd: join(root, 'dist') });
+  const files = {};
+  for (const entry of await readdir(out, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const path = join(entry.parentPath, entry.name);
+    files['EmeraldMaze/' + path.slice(out.length + 1).replaceAll('\\', '/')] = await readFile(path);
+  }
+  await writeFile(file, zipSync(files));
   console.log('Packaged', file);
 }
 

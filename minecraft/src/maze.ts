@@ -51,11 +51,11 @@ const STEPS = [
 /** Carves a perfect maze (one path between any two cells) with an iterative backtracker. */
 export function carve(cells: number, rnd: () => number): boolean[][] {
   const size = cells * 2 + 1;
-  const wall = Array.from({ length: size }, () => Array<boolean>(size).fill(true));
+  const wall = Array.from({ length: size }, () => new Array<boolean>(size).fill(true));
   const stack: Cell[] = [{ x: 1, z: 1 }];
   wall[1][1] = false;
   while (stack.length) {
-    const here = stack[stack.length - 1];
+    const here = stack.at(-1)!;
     const next = shuffle(STEPS.slice(), rnd)
       .map(s => ({ x: here.x + s.x, z: here.z + s.z, s }))
       .find(n => n.x > 0 && n.z > 0 && n.x < size - 1 && n.z < size - 1 && wall[n.z][n.x]);
@@ -73,11 +73,11 @@ export function carve(cells: number, rnd: () => number): boolean[][] {
 /** Steps from `from` to every open block, -1 for walls and unreachable blocks. */
 export function distances(wall: boolean[][], from: Cell): number[][] {
   const size = wall.length;
-  const dist = Array.from({ length: size }, () => Array<number>(size).fill(-1));
+  const dist = Array.from({ length: size }, () => new Array<number>(size).fill(-1));
   dist[from.z][from.x] = 0;
   const queue: Cell[] = [from];
-  for (let i = 0; i < queue.length; i++) {
-    const c = queue[i];
+  // for...of keeps visiting cells pushed during the loop, which is what BFS needs.
+  for (const c of queue) {
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const x = c.x + dx, z = c.z + dz;
       if (x < 0 || z < 0 || x >= size || z >= size || wall[z][x] || dist[z][x] >= 0) continue;
