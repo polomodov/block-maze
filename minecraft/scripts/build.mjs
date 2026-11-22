@@ -9,8 +9,10 @@ import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const out = join(root, 'dist/EmeraldMaze');
-await rm(join(root, 'dist'), { recursive: true, force: true });
+const forServer = process.argv.includes('--server');
+const outputDir = join(root, forServer ? '.bedrock' : 'dist');
+const out = join(outputDir, 'EmeraldMaze');
+await rm(outputDir, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 await cp(join(root, 'pack'), out, { recursive: true });
 await build({
@@ -23,6 +25,12 @@ await build({
   logLevel: 'warning',
 });
 console.log('Built', out);
+
+if (forServer) {
+  const { header } = JSON.parse(await readFile(join(out, 'manifest.json'), 'utf8'));
+  const packs = [{ pack_id: header.uuid, version: header.version }];
+  await writeFile(join(outputDir, 'world_behavior_packs.json'), JSON.stringify(packs, null, 2) + '\n');
+}
 
 if (process.argv.includes('--package')) {
   const file = join(root, 'dist/EmeraldMaze.mcaddon');

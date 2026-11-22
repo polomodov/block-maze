@@ -1,0 +1,160 @@
+# Локальная проверка «Изумрудного лабиринта»
+
+Стенд запускает Minecraft Bedrock Dedicated Server 1.26.66.1 с аддоном из текущего рабочего каталога. Для проверки загрузки скрипта достаточно Docker. Для прохождения лабиринта нужен совместимый клиент Minecraft Bedrock.
+
+## Первый запуск
+
+Понадобятся Node.js 22.18 или новее, npm, работающий Docker с Linux-контейнерами и Docker Compose. Выделите Docker минимум 4 ГБ памяти. На Windows команды ниже можно выполнить в WSL 2 с Docker Desktop. На macOS с Homebrew и Colima подготовьте окружение так:
+
+```sh
+brew install colima docker docker-compose
+colima start bedrock --activate=false --port-forwarder grpc --memory 4 --cpu 4
+export DOCKER_CONTEXT=colima-bedrock
+docker info
+```
+
+Отдельный профиль Colima оставляет текущий Docker-контекст пользователя прежним. Для игрового трафика нужен проброс UDP, поэтому профиль использует gRPC. [Сетевые режимы Colima](https://github.com/abiosoft/colima/blob/main/embedded/defaults/colima.yaml)
+
+Команды ниже используют `docker compose`. При отдельной установке Compose через Homebrew используйте `docker-compose` вместо `docker compose`. Если Docker CLI установлен в нестандартном каталоге, задайте для `npm run bedrock:check` абсолютный путь к нему через `BEDROCK_DOCKER_BIN`.
+
+Из корня репозитория:
+
+```sh
+cd minecraft
+npm ci --ignore-scripts
+npm run bedrock:prepare
+```
+
+Сборка создаёт `.bedrock/EmeraldMaze` и список паков мира `.bedrock/world_behavior_packs.json`. UUID и версия берутся из собранного манифеста.
+
+Прочтите [лицензию Minecraft](https://www.minecraft.net/eula). Если принимаете её, выполните в том же терминале:
+
+```sh
+export BEDROCK_EULA=TRUE
+docker compose up -d --wait --wait-timeout 600
+docker compose ps
+npm run bedrock:check
+```
+
+При первом запуске контейнер скачивает Linux-сервер с сайта Minecraft и создаёт отдельный мир `MazeLab`. Мир, сохранения и серверные файлы находятся в Docker-томе `block-maze-lab_lab-data`. Команда `npm run bedrock:check` запрашивает `/v1/join`, проверяет регистрацию `/maze:stop` и вызывает `maze:start small` из серверной консоли. Ответ «Команду должен ввести игрок» подтверждает, что Bedrock исполнил обработчик из аддона. В журнале может появиться предупреждение о занятом коротком имени `stop` — игровая команда использует полное имя `/maze:stop`.
+
+## Проверка после изменения кода
+
+Остановите процесс до пересборки, чтобы он не читал частично обновлённый пак. При старте Compose заново подключит каталог и файл, созданные сборкой.
+
+```sh
+docker compose stop
+npm test
+npm run typecheck
+npm run bedrock:prepare
+docker compose up -d --force-recreate --wait --wait-timeout 600
+npm run bedrock:check
+```
+
+Сборка релизного архива через `npm run package` пишет в отдельную папку `dist/` и может выполняться при работающем стенде.
+
+Если сервер не запустился или проверка вернула ошибку, откройте журнал:
+
+```sh
+docker compose ps -a
+docker compose logs --tail 100 bedrock
+```
+
+На Apple Silicon Linux-сервер x86-64 запускается через Box64 внутри ARM-образа. При проверке один старт завершился сообщением `Crash` во время подключения к сервисам Minecraft. Повторный запуск открыл тот же мир. Для таких завершений контейнер настроен на три повторные попытки. Если попытки исчерпались, изучите журнал, затем повторите `docker compose up -d --wait --wait-timeout 600`.
+
+## Игровая проверка
+
+В меню «Серверы» клиента Bedrock добавьте сервер по адресу `127.0.0.1`, порт `19132`. Этот адрес подходит для клиента на том же компьютере, где опубликованы порты Docker. На телефоне `127.0.0.1` указывает на сам телефон. Стенд по умолчанию доступен только с самого хоста.
+
+| Действие в тестовом мире | Ожидаемый результат |
+| --- | --- |
+| Запомните исходные координаты и режим. Введите `/maze:start` и выберите маленький лабиринт. | Открывается меню размеров. После выбора игрок появляется на старте, действуют границы арены. |
+| Внутри лабиринта введите `/maze:start medium`, затем `/maze:stop`. | Обе арены убраны. Игрок вернулся к исходным координатам в прежнем режиме. |
+| Пройдите маленький лабиринт, соберите изумруды и встаньте на золото. | Появляется сообщение о победе, затем игрок возвращается в мир. Лучшее время видно при следующем открытии меню. |
+| В Верхнем мире поставьте блок на высоте Y=281 над точкой запуска, затем попробуйте начать партию. | Аддон сообщает, что место занято. Блок остаётся на месте. |
+| Два игрока рядом запускают `/maze:start medium`. Затем второй отходит на 64 блока и повторяет запуск. Первый завершает партию. | Пересекающаяся арена отклонена. На расстоянии обе партии запускаются, и кадавры второго игрока остаются в его лабиринте. |
+| Выйдите из мира во время партии и подключитесь снова. | Позиция и режим восстановлены, можно начать новую игру. |
+
+## Подключение телефона по Wi-Fi
+
+Подключите телефон и Mac к одной домашней сети Wi-Fi. Ниже показана настройка для Colima 0.10.3 на macOS. Выполняйте команды в одном терминале из каталога `minecraft` после первого запуска стенда. Перезапуск временно отключит игроков и сохранит мир в Docker-томе.
+
+### 1. Узнайте адрес Mac и опубликуйте порты
+
+```sh
+wifi_device=$(networksetup -listallhardwareports | awk '/Hardware Port: Wi-Fi/ {getline; print $2}')
+export BEDROCK_BIND_IP="$(ipconfig getifaddr "$wifi_device")"
+echo "$BEDROCK_BIND_IP"
+```
+
+Продолжайте, когда увидите IPv4-адрес Wi-Fi, например `192.168.0.30`. Если вывод пустой, проверьте подключение Mac к Wi-Fi. Compose использует этот адрес и для публикации портов, и как адрес, который Bedrock сообщает телефону.
+
+```sh
+export DOCKER_CONTEXT=colima-bedrock BEDROCK_EULA=TRUE
+docker compose stop
+colima -p bedrock stop
+colima start bedrock --activate=false --network-host-addresses --port-forwarder grpc
+docker compose up -d --force-recreate --wait --wait-timeout 600
+npm run bedrock:check
+lsof -nP -iTCP:19132 -sTCP:LISTEN
+lsof -nP -iUDP:19140-19143
+```
+
+На Mac должны появиться TCP-порт `19132` и четыре UDP-порта `19140–19143`, все на адресе из `BEDROCK_BIND_IP`. TCP обслуживает подключение к серверу, а UDP передаёт игровой трафик. Если видны все пять портов, переходите к шагу 3.
+
+### 2. Если доступен TCP, но отсутствует UDP
+
+В Colima 0.10.3 с gRPC обнаружение портов на конкретном IP может создать только правило TCP. Признак в журнале Lima — `Not forwarding UDP` для портов стенда. Добавьте для профиля `bedrock` правило UDP на Wi-Fi-адресе:
+
+```sh
+export LIMA_HOME="$HOME/.colima/_lima"
+docker compose stop
+colima -p bedrock stop
+udp_rule=$(printf '{"guestIP":"%s","hostIP":"%s","guestPortRange":[19140,19143],"hostPortRange":[19140,19143],"proto":"udp"}' "$BEDROCK_BIND_IP" "$BEDROCK_BIND_IP")
+limactl edit --tty=false --set ".portForwards += [$udp_rule]" colima-bedrock
+limactl start --tty=false colima-bedrock
+```
+
+Прямой запуск Lima использует отредактированную конфигурацию. Восстановите Docker-контекст, если Colima удалила его при остановке, и проверьте наличие адреса внутри виртуальной машины:
+
+```sh
+if ! docker context inspect colima-bedrock >/dev/null 2>&1; then
+  docker context create colima-bedrock --docker "host=unix://$HOME/.colima/bedrock/docker.sock"
+fi
+colima -p bedrock ssh -- sudo systemctl start docker
+if [ -z "$(colima -p bedrock ssh -- ip -4 -o addr show dev lo to "$BEDROCK_BIND_IP/32")" ]; then
+  colima -p bedrock ssh -- sudo ip addr add "$BEDROCK_BIND_IP/32" dev lo
+fi
+docker compose up -d --wait --wait-timeout 600
+npm run bedrock:check
+lsof -nP -iUDP:19140-19143
+```
+
+Проверьте, что теперь `limactl` слушает все четыре UDP-порта на Wi-Fi-адресе Mac. При смене IP начните с шага 1. После очередного `colima start` проверьте порты снова: Colima может заново создать конфигурацию Lima.
+
+### 3. Войдите с телефона
+
+1. В браузере телефона откройте `http://<Wi-Fi-IP-Mac>:19132/v1/join`, подставив свой адрес. Поле `"level":"MazeLab"` подтверждает доступность TCP с телефона.
+2. В Minecraft Bedrock откройте **Играть → Серверы → Добавить сервер**. Имя — `MazeLab`, адрес — IPv4 из шага 1, порт — **19132**. UDP-порты клиент выберет автоматически.
+3. Войдите в мир и в чате выполните `/maze:start small`. Должен появиться маленький лабиринт. Команда `/maze:stop` вернёт вас на место старта.
+
+Если страница статуса открывается, а вход в мир зависает, проверьте UDP на шаге 2. Если страница недоступна, проверьте IP, разрешение на локальную сеть у приложения и изоляцию устройств в гостевой Wi-Fi-сети.
+
+Чтобы снова ограничить стенд этим компьютером, выполните в том же терминале:
+
+```sh
+unset BEDROCK_BIND_IP
+docker compose up -d --force-recreate --wait --wait-timeout 600
+npm run bedrock:check
+```
+
+## Остановка и повторный запуск
+
+```sh
+docker compose down
+docker compose up -d --wait --wait-timeout 600
+```
+
+Обычный `down` сохраняет том и мир. В новом терминале заново задайте `BEDROCK_EULA` и, если используется Colima, `DOCKER_CONTEXT`. Команда `docker compose down --volumes` удаляет тестовый мир, рекорды и скачанный сервер. Используйте её только когда нужен чистый стенд.
+
+[Официальная загрузка Bedrock Dedicated Server](https://www.minecraft.net/en-us/download/server/bedrock) · [Установка паков в Bedrock Dedicated Server](https://learn.microsoft.com/en-us/minecraft/creator/documents/bedrockserver/getting-started) · [Образ контейнера и сетевые настройки](https://github.com/itzg/docker-minecraft-bedrock-server/tree/2026.11.1)

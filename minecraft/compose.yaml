@@ -1,0 +1,45 @@
+name: block-maze-lab
+services:
+  bedrock:
+    image: itzg/minecraft-bedrock-server:2026.11.1
+    healthcheck:
+      start_period: 5m
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    stdin_open: true
+    tty: true
+    stop_grace_period: 60s
+    restart: "on-failure:3"
+    environment:
+      EULA: "${BEDROCK_EULA:-FALSE}"
+      VERSION: "1.26.66.1"
+      DIRECT_DOWNLOAD_URL: https://www.minecraft.net/bedrockdedicatedserver/bin-linux/bedrock-server-1.26.66.1.zip
+      LEVEL_NAME: MazeLab
+      SERVER_NAME: Emerald Maze Lab
+      DIFFICULTY: normal
+      MAX_PLAYERS: "4"
+      ONLINE_MODE: "true"
+      ALLOW_LIST: "false"
+      TRANSPORT: nethernet
+      SERVER_UDP_PORTS: "${BEDROCK_BIND_IP:-127.0.0.1}:19140-19143:19140-19143"
+      CONTENT_LOG_CONSOLE_OUTPUT_ENABLED: "true"
+    ports:
+      - "${BEDROCK_BIND_IP:-127.0.0.1}:19132:19132/tcp"
+      - "${BEDROCK_BIND_IP:-127.0.0.1}:19140-19143:19140-19143/udp"
+    volumes:
+      - lab-data:/data
+      - type: bind
+        source: ./.bedrock/EmeraldMaze
+        target: /data/behavior_packs/EmeraldMaze
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./.bedrock/world_behavior_packs.json
+        target: /data/worlds/MazeLab/world_behavior_packs.json
+        read_only: true
+        bind:
+          create_host_path: false
+volumes:
+  lab-data:
