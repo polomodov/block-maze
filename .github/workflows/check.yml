@@ -23,3 +23,16 @@ jobs:
       - name: Minecraft-аддон
         working-directory: minecraft
         run: npm ci --ignore-scripts && npm test && npm run typecheck && npm run package
+  windows-package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Зависимости Minecraft-аддона
+        working-directory: minecraft
+        run: npm ci --ignore-scripts
+      - name: Упаковка и локальная установка Minecraft-аддона
+        working-directory: minecraft
+        run: node --test tests/package.test.mjs
