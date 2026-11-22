@@ -1,8 +1,16 @@
 import { execFileSync } from 'node:child_process';
-import { setTimeout as delay } from 'node:timers/promises';
+import { existsSync } from 'node:fs';
+import { isAbsolute } from 'node:path';
+import { setInterval } from 'node:timers/promises';
+
+const dockerBin = process.env.BEDROCK_DOCKER_BIN ||
+  ['/usr/bin/docker', '/usr/local/bin/docker', '/opt/homebrew/bin/docker'].find(existsSync);
 
 function docker(...args) {
-  return execFileSync('docker', args, { encoding: 'utf8', timeout: 10_000 }).trim();
+  if (!dockerBin || !isAbsolute(dockerBin)) {
+    throw new Error('Укажите абсолютный путь к Docker CLI в BEDROCK_DOCKER_BIN.');
+  }
+  return execFileSync(dockerBin, args, { encoding: 'utf8', timeout: 10_000 }).trim();
 }
 
 async function check() {
@@ -16,24 +24,26 @@ async function check() {
   if (!response.ok) throw new Error('Запрос к серверу вернул HTTP ' + response.status);
   const info = await response.json();
   if (info.level !== 'MazeLab') throw new Error('На порту 19132 ответил другой мир.');
-  console.log(`Bedrock ${info.version}, мир ${info.level}, игроков ${info.players} из ${info.maxPlayers}.`);
+  console.log('Сервер Bedrock подтвердил доступность мира MazeLab.');
 
   // Use the container clock and only accept output from this invocation.
   const since = docker('exec', container, 'date', '-u', '+%Y-%m-%dT%H:%M:%S.%NZ');
   docker('exec', container, 'send-command', 'help maze:stop');
   docker('exec', container, 'send-command', 'maze:start small');
-  for (let attempt = 0; attempt < 20; attempt++) {
+  for await (const deadline of setInterval(500, Date.now() + 10_000)) {
     const logs = docker('logs', '--since', since, container);
     if (logs.includes('/maze:stop') && logs.includes('Команду должен ввести игрок')) {
       console.log('Команда /maze:stop зарегистрирована. Обработчик /maze:start ответил консоли.');
       return;
     }
-    await delay(500);
+    if (Date.now() >= deadline) break;
   }
   throw new Error('Нет ответов обеих команд аддона. Проверьте журнал сервиса bedrock.');
 }
 
-check().catch(error => {
+try {
+  await check();
+} catch (error) {
   console.error(error.message);
   process.exitCode = 1;
-});
+}

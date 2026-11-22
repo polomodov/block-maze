@@ -15,7 +15,7 @@ docker info
 
 Отдельный профиль Colima оставляет текущий Docker-контекст пользователя прежним. Для игрового трафика нужен проброс UDP, поэтому профиль использует gRPC. [Сетевые режимы Colima](https://github.com/abiosoft/colima/blob/main/embedded/defaults/colima.yaml)
 
-Команды ниже используют `docker compose`. При отдельной установке Compose через Homebrew используйте `docker-compose` вместо `docker compose`.
+Команды ниже используют `docker compose`. При отдельной установке Compose через Homebrew используйте `docker-compose` вместо `docker compose`. Если Docker CLI установлен в нестандартном каталоге, задайте для `npm run bedrock:check` абсолютный путь к нему через `BEDROCK_DOCKER_BIN`.
 
 Из корня репозитория:
 
