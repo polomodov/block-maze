@@ -5,9 +5,10 @@ import { build } from 'esbuild';
 import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { zipSync } from 'fflate';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('../', import.meta.url).pathname;
+const root = fileURLToPath(new URL('../', import.meta.url));
 const out = join(root, 'dist/EmeraldMaze');
 await rm(join(root, 'dist'), { recursive: true, force: true });
 await mkdir(out, { recursive: true });
@@ -25,13 +26,13 @@ console.log('Built', out);
 
 if (process.argv.includes('--package')) {
   const file = join(root, 'dist/EmeraldMaze.mcaddon');
-  const files = {};
-  for (const entry of await readdir(out, { recursive: true, withFileTypes: true })) {
-    if (!entry.isFile()) continue;
+  const entries = await readdir(out, { recursive: true, withFileTypes: true });
+  const files = await Promise.all(entries.filter(entry => entry.isFile()).map(async entry => {
     const path = join(entry.parentPath, entry.name);
-    files['EmeraldMaze/' + path.slice(out.length + 1).replaceAll('\\', '/')] = await readFile(path);
-  }
-  await writeFile(file, zipSync(files));
+    const archivePath = 'EmeraldMaze/' + relative(out, path).split(sep).join('/');
+    return [archivePath, await readFile(path)];
+  }));
+  await writeFile(file, zipSync(Object.fromEntries(files)));
   console.log('Packaged', file);
 }
 

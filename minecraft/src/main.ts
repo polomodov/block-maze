@@ -11,6 +11,7 @@ import {
   Entity,
   Vector3,
 } from '@minecraft/server';
+import { reserveArena, releaseArena } from './arenas.ts';
 import { ActionFormData, FormCancelationReason } from '@minecraft/server-ui';
 import { planMaze, formatTicks, MazePlan, MazeSize, SIZES, Cell } from './maze.ts';
 
@@ -23,7 +24,6 @@ const EMERALD = 'minecraft:emerald_block';
 const FINISH = 'minecraft:gold_block';
 const ROOF = 'minecraft:barrier';
 const MONSTER = 'minecraft:husk'; // husks do not burn in daylight
-const MOB_TAG = 'emerald_maze_mob';
 const LIVES = 3;
 
 // Saved on the player so a game survives a disconnect or a world reload.
@@ -42,9 +42,10 @@ type Game = {
   startTick: number;
   mobs: { entity: Entity; home: Cell }[];
   allCollectedShown: boolean;
+  finishing: boolean;
 };
 
-type ReturnInfo = { dim: string; x: number; y: number; z: number; mode: GameMode; area: number[] };
+type ReturnInfo = { dim: string; x: number; y: number; z: number; mode: GameMode };
 
 const games = new Map<string, Game>();
 const key = (c: Cell) => c.x + ',' + c.z;
@@ -62,13 +63,6 @@ function areaFor(player: Player, plan: MazePlan): Vector3 {
     y: range.max - 40,
     z: Math.floor(player.location.z) - Math.floor(plan.size / 2),
   };
-}
-
-function clearArea(dimension: Dimension, area: number[]) {
-  const [x, y, z, size] = area;
-  dimension.fillBlocks(new BlockVolume({ x, y, z }, { x: x + size - 1, y: y + 4, z: z + size - 1 }), 'minecraft:air', {
-    ignoreChunkBoundErrors: true,
-  });
 }
 
 function build(dimension: Dimension, plan: MazePlan, o: Vector3) {
@@ -90,27 +84,25 @@ function build(dimension: Dimension, plan: MazePlan, o: Vector3) {
 // ---------- game lifecycle ----------
 
 function startGame(player: Player, size: MazeSize) {
-  if (games.has(player.id)) endGame(games.get(player.id)!, 'stop');
+  if (!player.isValid || !restorePlayer(player)) return;
   const plan = planMaze(size, (Date.now() ^ system.currentTick) >>> 0);
   const dimension = player.dimension;
   const origin = areaFor(player, plan);
   try {
+    const mobTag = reserveArena(player.id, dimension, origin, plan.size);
+    const { x, y, z } = player.location;
+    const info: ReturnInfo = { dim: dimension.id, x, y, z, mode: player.getGameMode() };
     build(dimension, plan, origin);
-  } catch (e) {
-    player.sendMessage('§cНе получилось построить лабиринт здесь: ' + String(e));
-    return;
+    player.setDynamicProperty(SAVE_KEY, JSON.stringify(info));
+    enterGame(player, size, plan, origin, mobTag);
+  } catch (error) {
+    restorePlayer(player);
+    player.sendMessage('§cНе получилось начать игру: ' + String(error));
   }
+}
 
-  const info: ReturnInfo = {
-    dim: dimension.id,
-    x: player.location.x,
-    y: player.location.y,
-    z: player.location.z,
-    mode: player.getGameMode(),
-    area: [origin.x, origin.y, origin.z, plan.size],
-  };
-  player.setDynamicProperty(SAVE_KEY, JSON.stringify(info));
-
+function enterGame(player: Player, size: MazeSize, plan: MazePlan, origin: Vector3, mobTag: string) {
+  const dimension = player.dimension;
   const game: Game = {
     id: player.id,
     player,
@@ -123,6 +115,7 @@ function startGame(player: Player, size: MazeSize) {
     startTick: system.currentTick,
     mobs: [],
     allCollectedShown: false,
+    finishing: false,
   };
   games.set(player.id, game);
 
@@ -131,8 +124,8 @@ function startGame(player: Player, size: MazeSize) {
   protect(player);
   for (const home of plan.monsters) {
     const entity = dimension.spawnEntity(MONSTER, at(game, home));
-    entity.addTag(MOB_TAG);
     game.mobs.push({ entity, home });
+    entity.addTag(mobTag);
   }
   player.onScreenDisplay.setTitle('§aИзумрудный лабиринт', {
     subtitle: 'Собери ' + plan.emeralds.length + ' изумрудов и встань на золото',
@@ -149,34 +142,58 @@ function protect(player: Player) {
   player.addEffect('saturation', 20 * 60 * 30, { amplifier: 1, showParticles: false });
 }
 
-function restorePlayer(player: Player) {
-  const raw = player.getDynamicProperty(SAVE_KEY);
-  if (typeof raw !== 'string') return;
-  player.setDynamicProperty(SAVE_KEY, undefined);
-  const info = JSON.parse(raw) as ReturnInfo;
-  const dimension = world.getDimension(info.dim);
+function removeMobs(game: Game) {
+  for (const { entity } of game.mobs) if (entity.isValid) entity.remove();
+}
+
+function cleanUp(owner: string) {
+  const active = games.get(owner);
+  games.delete(owner);
+  if (active) removeMobs(active);
+  releaseArena(owner);
+}
+
+function restorePlayer(player: Player): boolean {
+  let cleaned = true;
   try {
-    clearArea(dimension, info.area);
+    cleanUp(player.id);
   } catch {
-    // Chunks may be unloaded after a reload; the maze then just stays in the sky.
+    // Keep the reservation so a later stop, join or start can retry unloaded chunks.
+    cleaned = false;
+    player.sendMessage('§eПока не удалось убрать лабиринт. Вернись к нему и повтори /maze:stop.');
   }
-  for (const mob of dimension.getEntities({ tags: [MOB_TAG] })) mob.remove();
-  player.removeEffect('resistance');
-  player.removeEffect('saturation');
-  player.setGameMode(info.mode);
-  player.teleport({ x: info.x, y: info.y, z: info.z }, { dimension });
+  const raw = player.getDynamicProperty(SAVE_KEY);
+  if (typeof raw !== 'string') return cleaned;
+  try {
+    // Older saves also contain an area, but cannot prove ownership of its blocks or mobs.
+    const info = JSON.parse(raw) as ReturnInfo;
+    player.removeEffect('resistance');
+    player.removeEffect('saturation');
+    player.setGameMode(info.mode);
+    player.teleport({ x: info.x, y: info.y, z: info.z }, { dimension: world.getDimension(info.dim) });
+    player.setDynamicProperty(SAVE_KEY, undefined);
+    return cleaned;
+  } catch {
+    player.sendMessage('§eНе удалось вернуться на место старта. Повтори /maze:stop.');
+    return false;
+  }
 }
 
 function endGame(game: Game, reason: 'win' | 'lose' | 'stop' | 'left') {
-  games.delete(game.id);
-  for (const mob of game.mobs) if (mob.entity.isValid) mob.entity.remove();
   if (reason === 'left') {
-    // The player is gone; clear the maze now and restore them on their next join.
     try {
-      clearArea(game.dimension, [game.origin.x, game.origin.y, game.origin.z, game.plan.size]);
-    } catch {}
+      cleanUp(game.id);
+    } catch {
+      // The persisted reservation allows cleanup on the next join.
+    }
     return;
   }
+  if (reason === 'stop') {
+    restorePlayer(game.player);
+    return;
+  }
+  game.finishing = true;
+  removeMobs(game);
   const player = game.player;
   const ticks = system.currentTick - game.startTick;
   if (reason === 'win') {
@@ -190,7 +207,7 @@ function endGame(game: Game, reason: 'win' | 'lose' | 'stop' | 'left') {
       fadeOutDuration: 20,
     });
     player.playSound('random.totem');
-  } else if (reason === 'lose') {
+  } else {
     player.onScreenDisplay.setTitle('§cПоймали!', {
       subtitle: 'Жизни закончились. Попробуй ещё: /maze:start',
       fadeInDuration: 5,
@@ -201,8 +218,8 @@ function endGame(game: Game, reason: 'win' | 'lose' | 'stop' | 'left') {
   }
   // Leave a moment to read the title before flying home.
   system.runTimeout(() => {
-    if (player.isValid) restorePlayer(player);
-  }, reason === 'stop' ? 1 : 40);
+    if (player.isValid && games.get(game.id) === game) restorePlayer(player);
+  }, 40);
 }
 
 // ---------- every few ticks ----------
@@ -257,6 +274,7 @@ function showStatus(game: Game) {
 
 function update(game: Game) {
   if (!game.player.isValid) return endGame(game, 'left');
+  if (game.finishing) return;
   const cell = playerCell(game);
   // Teleported out by a command or another add-on: the game is over.
   if (!cell) return endGame(game, 'stop');
@@ -338,11 +356,8 @@ system.beforeEvents.startup.subscribe(({ customCommandRegistry }) => {
 world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
   if (!initialSpawn) return;
   // Came back after leaving mid-game (or after a world reload): fly home first.
-  system.runTimeout(() => {
-    if (!player.isValid) return;
-    restorePlayer(player);
-    player.sendMessage('§aИзумрудный лабиринт§r: напиши §e/maze:start§r, чтобы сыграть.');
-  }, 40);
+  if (!games.has(player.id)) restorePlayer(player);
+  player.sendMessage('§aИзумрудный лабиринт§r: напиши §e/maze:start§r, чтобы сыграть.');
 });
 
 world.afterEvents.playerLeave.subscribe(({ playerId }) => {
