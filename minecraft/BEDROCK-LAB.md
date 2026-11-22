@@ -75,7 +75,78 @@ docker compose logs --tail 100 bedrock
 | Два игрока рядом запускают `/maze:start medium`. Затем второй отходит на 64 блока и повторяет запуск. Первый завершает партию. | Пересекающаяся арена отклонена. На расстоянии обе партии запускаются, и кадавры второго игрока остаются в его лабиринте. |
 | Выйдите из мира во время партии и подключитесь снова. | Позиция и режим восстановлены, можно начать новую игру. |
 
-Для проверки с другого устройства в доверенной сети укажите в `BEDROCK_BIND_IP` доступный этому устройству IPv4-адрес хоста и пересоздайте контейнер. Это открывает стенд на выбранном интерфейсе. Docker должен уметь привязать этот IP и передать TCP 19132 и UDP 19140–19143. На macOS с виртуальной машиной проверьте также проброс UDP и доступность объявленного IP со второго устройства. Для возврата к локальному режиму выполните `unset BEDROCK_BIND_IP` и пересоздайте контейнер.
+## Подключение телефона по Wi-Fi
+
+Подключите телефон и Mac к одной домашней сети Wi-Fi. Ниже показана настройка для Colima 0.10.3 на macOS. Выполняйте команды в одном терминале из каталога `minecraft` после первого запуска стенда. Перезапуск временно отключит игроков и сохранит мир в Docker-томе.
+
+### 1. Узнайте адрес Mac и опубликуйте порты
+
+```sh
+wifi_device=$(networksetup -listallhardwareports | awk '/Hardware Port: Wi-Fi/ {getline; print $2}')
+export BEDROCK_BIND_IP="$(ipconfig getifaddr "$wifi_device")"
+echo "$BEDROCK_BIND_IP"
+```
+
+Продолжайте, когда увидите IPv4-адрес Wi-Fi, например `192.168.0.30`. Если вывод пустой, проверьте подключение Mac к Wi-Fi. Compose использует этот адрес и для публикации портов, и как адрес, который Bedrock сообщает телефону.
+
+```sh
+export DOCKER_CONTEXT=colima-bedrock BEDROCK_EULA=TRUE
+docker compose stop
+colima -p bedrock stop
+colima start bedrock --activate=false --network-host-addresses --port-forwarder grpc
+docker compose up -d --force-recreate --wait --wait-timeout 600
+npm run bedrock:check
+lsof -nP -iTCP:19132 -sTCP:LISTEN
+lsof -nP -iUDP:19140-19143
+```
+
+На Mac должны появиться TCP-порт `19132` и четыре UDP-порта `19140–19143`, все на адресе из `BEDROCK_BIND_IP`. TCP обслуживает подключение к серверу, а UDP передаёт игровой трафик. Если видны все пять портов, переходите к шагу 3.
+
+### 2. Если доступен TCP, но отсутствует UDP
+
+В Colima 0.10.3 с gRPC обнаружение портов на конкретном IP может создать только правило TCP. Признак в журнале Lima — `Not forwarding UDP` для портов стенда. Добавьте для профиля `bedrock` правило UDP на Wi-Fi-адресе:
+
+```sh
+export LIMA_HOME="$HOME/.colima/_lima"
+docker compose stop
+colima -p bedrock stop
+udp_rule=$(printf '{"guestIP":"%s","hostIP":"%s","guestPortRange":[19140,19143],"hostPortRange":[19140,19143],"proto":"udp"}' "$BEDROCK_BIND_IP" "$BEDROCK_BIND_IP")
+limactl edit --tty=false --set ".portForwards += [$udp_rule]" colima-bedrock
+limactl start --tty=false colima-bedrock
+```
+
+Прямой запуск Lima использует отредактированную конфигурацию. Восстановите Docker-контекст, если Colima удалила его при остановке, и проверьте наличие адреса внутри виртуальной машины:
+
+```sh
+if ! docker context inspect colima-bedrock >/dev/null 2>&1; then
+  docker context create colima-bedrock --docker "host=unix://$HOME/.colima/bedrock/docker.sock"
+fi
+colima -p bedrock ssh -- sudo systemctl start docker
+if [ -z "$(colima -p bedrock ssh -- ip -4 -o addr show dev lo to "$BEDROCK_BIND_IP/32")" ]; then
+  colima -p bedrock ssh -- sudo ip addr add "$BEDROCK_BIND_IP/32" dev lo
+fi
+docker compose up -d --wait --wait-timeout 600
+npm run bedrock:check
+lsof -nP -iUDP:19140-19143
+```
+
+Проверьте, что теперь `limactl` слушает все четыре UDP-порта на Wi-Fi-адресе Mac. При смене IP начните с шага 1. После очередного `colima start` проверьте порты снова: Colima может заново создать конфигурацию Lima.
+
+### 3. Войдите с телефона
+
+1. В браузере телефона откройте `http://<Wi-Fi-IP-Mac>:19132/v1/join`, подставив свой адрес. Поле `"level":"MazeLab"` подтверждает доступность TCP с телефона.
+2. В Minecraft Bedrock откройте **Играть → Серверы → Добавить сервер**. Имя — `MazeLab`, адрес — IPv4 из шага 1, порт — **19132**. UDP-порты клиент выберет автоматически.
+3. Войдите в мир и в чате выполните `/maze:start small`. Должен появиться маленький лабиринт. Команда `/maze:stop` вернёт вас на место старта.
+
+Если страница статуса открывается, а вход в мир зависает, проверьте UDP на шаге 2. Если страница недоступна, проверьте IP, разрешение на локальную сеть у приложения и изоляцию устройств в гостевой Wi-Fi-сети.
+
+Чтобы снова ограничить стенд этим компьютером, выполните в том же терминале:
+
+```sh
+unset BEDROCK_BIND_IP
+docker compose up -d --force-recreate --wait --wait-timeout 600
+npm run bedrock:check
+```
 
 ## Остановка и повторный запуск
 
