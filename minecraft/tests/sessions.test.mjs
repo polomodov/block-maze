@@ -15,6 +15,7 @@ test('restarting an active game preserves the original position and mode', () =>
   sim.stop(player);
   sim.flushTimers();
   assert.deepEqual(player.location, home);
+  assert.equal(player.effects.size, 0);
   assert.equal(player.mode, 'creative');
   assert.equal(player.getDynamicProperty(saveKey), undefined);
   assert.equal(sim.dimension.blocks.size, 0);
@@ -28,6 +29,7 @@ test('a delayed finish cannot restore a replacement game', () => {
     mob.teleport(player.location);
     sim.events.tick();
   }
+  assert.equal(player.lastSound, 'mob.husk.ambient');
   sim.start(player, 'small');
   sim.flushTimers();
   assert.equal(player.mode, 'adventure');
@@ -57,7 +59,7 @@ test('unloaded space is rejected and a partial construction rolls back', () => {
   const fill = sim.dimension.fillBlocks.bind(sim.dimension);
   let calls = 0;
   sim.dimension.fillBlocks = (...args) => {
-    if (++calls === 2) throw Error('interrupted build');
+    if (++calls === 2) throw new Error('interrupted build');
     return fill(...args);
   };
   sim.start(player);

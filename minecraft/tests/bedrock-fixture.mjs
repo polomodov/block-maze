@@ -23,6 +23,8 @@ class Player extends Properties {
   mode = 'creative';
   isValid = true;
   messages = [];
+  effects = new Set();
+  lastSound;
   onScreenDisplay = { setTitle() {}, setActionBar() {} };
   constructor(id, dimension, location) {
     super();
@@ -34,9 +36,9 @@ class Player extends Properties {
   sendMessage(text) { this.messages.push(text); }
   getGameMode() { return this.mode; }
   setGameMode(mode) { this.mode = mode; }
-  addEffect() {}
-  removeEffect() {}
-  playSound() {}
+  addEffect(effect) { this.effects.add(effect); }
+  removeEffect(effect) { this.effects.delete(effect); }
+  playSound(sound) { this.lastSound = sound; }
 }
 
 class BlockVolume {
@@ -59,7 +61,7 @@ class Dimension {
   writes = 0;
   constructor(id) { this.id = id; }
   containsBlock(bounds, filter, allowUnloadedChunks) {
-    if (!this.loaded && !allowUnloadedChunks) throw Error('Unloaded chunks');
+    if (!this.loaded && !allowUnloadedChunks) throw new Error('Unloaded chunks');
     for (const { x, y, z } of bounds.positions()) {
       const block = this.blocks.get([x, y, z].join(',')) ?? 'minecraft:air';
       if (!filter.excludeTypes.includes(block)) return true;
@@ -73,7 +75,7 @@ class Dimension {
     this.writes++;
   }
   fillBlocks(bounds, type, options) {
-    if (!this.loaded && !options?.ignoreChunkBoundErrors) throw Error('Unloaded chunks');
+    if (!this.loaded && !options?.ignoreChunkBoundErrors) throw new Error('Unloaded chunks');
     for (const position of bounds.positions()) this.setBlockType(position, type);
   }
   spawnEntity(type, location) {
