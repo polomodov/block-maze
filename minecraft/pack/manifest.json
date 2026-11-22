@@ -1,0 +1,55 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Изумрудный лабиринт",
+    "description": "Мини-игра: собери изумруды в случайном лабиринте. Команда /maze:start",
+    "uuid": "c4683c67-5a6b-4005-adf0-b4d98c00e41a",
+    "version": [
+      0,
+      1,
+      0
+    ],
+    "min_engine_version": [
+      1,
+      26,
+      50
+    ]
+  },
+  "modules": [
+    {
+      "type": "data",
+      "uuid": "35722d57-778f-453a-8ced-2de143cf335a",
+      "version": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "script",
+      "language": "javascript",
+      "uuid": "8f255c0a-33b1-4c6e-871e-e9be4c85dcf6",
+      "version": [
+        0,
+        1,
+        0
+      ],
+      "entry": "scripts/main.js"
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "2.10.0"
+    },
+    {
+      "module_name": "@minecraft/server-ui",
+      "version": "2.2.0"
+    }
+  ],
+  "metadata": {
+    "authors": [
+      "Игротека"
+    ]
+  }
+}
